@@ -186,6 +186,7 @@ buddha-gpt/
 |---|---|---|
 | `OPENROUTER_API_KEY` | agent, Go | — |
 | `DATABASE_URL` | Go | `postgres://postgres:postgres@localhost:5432/buddha_gpt` |
+| `POSTGRES_PORT` | Docker Compose: the host port for Postgres, if 5432 is taken | `5432` |
 | `RETRIEVAL_URL` | agent | `http://localhost:7890` |
 | `NEXT_PUBLIC_API_URL` | web: the agent's URL | `http://localhost:7891` |
 | `CORS_ORIGINS` | agent | `http://localhost:5005` |
@@ -201,7 +202,7 @@ buddha-gpt/
 | Database | Postgres 18, pgvector 0.8 (HNSW), `pg_trgm` | Canon and vectors in one database |
 | Models | Through OpenRouter | Reply and guard: Claude Opus 5.5 at low effort to start, with Claude Haiku 5.5 as the cheaper candidate the evals must approve. Judge: a different model family. Embeddings: `baai/bge-m3` |
 | CI | GitHub Actions | Lint, tests, eval gate |
-| Monorepo | pnpm 12 workspace + `concurrently` 10 | The house layout, with no Turborepo. Go isn't a pnpm package, so root scripts call it directly |
+| Monorepo | pnpm 10 workspace + `concurrently` 10 | The house layout, with no Turborepo. Go isn't a pnpm package, so root scripts call it directly |
 
 - Set `provider.require_parameters: true` wherever you send tools or a schema. Otherwise OpenRouter may route to a provider that ignores them.
 - A `models: [...]` list gives automatic fallback, and every response reports `usage.cost`.

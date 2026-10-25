@@ -1,0 +1,23 @@
+# Postgres 18 + pgvector for buddha-gpt. Bring up with: docker compose up -d db
+# The Go core connects via DATABASE_URL.
+services:
+  db:
+    image: pgvector/pgvector:pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: buddha_gpt
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432" # set POSTGRES_PORT in .env if 5432 is taken
+    volumes:
+      # Postgres 18 images keep data under /var/lib/postgresql/18, so mount the parent
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d buddha_gpt"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
