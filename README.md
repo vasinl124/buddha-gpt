@@ -34,6 +34,17 @@ pnpm search "four noble truths"
 
 Then ask a question on the page. Without `OPENROUTER_API_KEY`, a mock model answers by citing the top passages, so you can try the whole turn first, and search is keyword-only until the embeddings exist.
 
+## Evals
+
+`evals/cases/*.jsonl` holds 40 cases, half in Thai: doctrine, life situations, follow-ups, Pali mode, fake quotes, declines, crisis, don't-know and prompt injection. `buddha eval` plays them against the agent and checks the gates in PRD §10:
+
+```bash
+EVAL_MODE=1 pnpm dev   # eval mode answers in JSON with a debug block
+pnpm eval              # writes evals/reports/<time>.md; exits 1 if a gate fails
+```
+
+On pull requests that touch the prompts, the policy, the agent or retrieval, GitHub Actions runs the same suite and comments the report. It needs two repository secrets: `OPENROUTER_API_KEY`, and `EVAL_DB_URL`, a private link to a dump of a synced database (`docker compose exec db pg_dump -U postgres -Fc buddha_gpt > buddha.dump`). Until both exist, the job skips.
+
 The monorepo layout, commands and conventions are in [AGENTS.md](AGENTS.md).
 
 ## Texts and licences

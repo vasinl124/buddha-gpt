@@ -1,0 +1,77 @@
+name: Eval
+
+# The eval gate (PRD §10): runs evals/cases against the real agent and model on PRs that can change
+# a reply, and comments the report. It needs two secrets, so it skips until they exist:
+#   OPENROUTER_API_KEY  the agent's and the judge's models
+#   EVAL_DB_URL         a private URL to a pg_dump of a synced database, with embeddings
+# Forks don't get secrets, so the gate runs on branches of this repo. One run costs a few dollars.
+
+on:
+  pull_request:
+    paths: [prompts/**, policy.yaml, services/agent/**, services/core/**, evals/**]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      EVAL_DB_URL: ${{ secrets.EVAL_DB_URL }}
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/buddha_gpt
+      EVAL_MODE: "1"
+    services:
+      db:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: buddha_gpt
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 20
+    steps:
+      - name: Skip without the secrets
+        if: env.OPENROUTER_API_KEY == '' || env.EVAL_DB_URL == ''
+        run: echo "::notice::Eval gate skipped. Add the OPENROUTER_API_KEY and EVAL_DB_URL secrets to run it (PRD §10)."
+      - uses: actions/checkout@v7
+        if: env.OPENROUTER_API_KEY != '' && env.EVAL_DB_URL != ''
+      - uses: pnpm/action-setup@v6
+        if: env.OPENROUTER_API_KEY != '' && env.EVAL_DB_URL != ''
+      - uses: actions/setup-node@v7
+        if: env.OPENROUTER_API_KEY != '' && env.EVAL_DB_URL != ''
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-go@v7
+        if: env.OPENROUTER_API_KEY != '' && env.EVAL_DB_URL != ''
+        with:
+          go-version-file: services/core/go.mod
+          cache-dependency-path: services/core/go.sum
+      - name: Restore the database
+        if: env.OPENROUTER_API_KEY != '' && env.EVAL_DB_URL != ''
+        run: |
+          curl -sSfL "$EVAL_DB_URL" -o buddha.dump
+          # the runner's pg_restore is older than Postgres 18, so use the server image's
+          docker run --rm --network host -v "$PWD:/w" pgvector/pgvector:pg18 \
+            pg_restore --no-owner --dbname "$DATABASE_URL" /w/buddha.dump
+      - name: Start the core and the agent
+        if: env.OPENROUTER_API_KEY != '' && env.EVAL_DB_URL != ''
+        run: |
+          pnpm install --frozen-lockfile
+          (cd services/core && go build -o /tmp/buddha ./cmd/buddha && /tmp/buddha serve > /tmp/core.log 2>&1 &)
+          (pnpm --filter buddha-gpt-agent start > /tmp/agent.log 2>&1 &)
+          for i in $(seq 60); do curl -sf localhost:7891/healthz && curl -sf localhost:7890/healthz && break; sleep 2; done
+      - name: Run the eval
+        if: env.OPENROUTER_API_KEY != '' && env.EVAL_DB_URL != ''
+        working-directory: services/core
+        run: /tmp/buddha eval | tee ../../eval-report.md
+      - name: Comment the report on the PR
+        if: always() && github.event_name == 'pull_request' && env.OPENROUTER_API_KEY != '' && env.EVAL_DB_URL != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: test -s eval-report.md && gh pr comment ${{ github.event.pull_request.number }} --body-file eval-report.md
+      - name: Logs
+        if: failure() && env.OPENROUTER_API_KEY != '' && env.EVAL_DB_URL != ''
+        run: tail -n 50 /tmp/core.log /tmp/agent.log

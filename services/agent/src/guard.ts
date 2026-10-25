@@ -53,7 +53,7 @@ export async function guard(messages: ModelMessage[], latest: string): Promise<G
 // No key: a keyword stand-in, so the routes can be tried, and tested, before a key exists.
 function mockGuard(latest: string): Guard {
   const t = fold(latest);
-  const quote = latest.match(/buddha (?:really )?(?:say|said)[,:]?\s*["“']([^"”']+)["”']/i)?.[1] ?? "";
+  const quote = latest.match(/(?:buddha (?:really )?(?:say|said)|ตรัสว่า)[,:]?\s*["“']([^"”']+)["”']/i)?.[1] ?? "";
   const guess = (route: Route, decline_topic: string | null = null): Guard => ({ route, decline_topic, search_query: latest, quote });
   if (/lottery|lotto|หวย|เลขเด็ด/.test(t)) return guess("decline", "lottery");
   if (/^(hi|hello|hey|thanks|thank you)\b|^(สวัสดี|ขอบคุณ)/.test(t)) return guess("chat");

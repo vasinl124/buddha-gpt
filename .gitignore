@@ -2,6 +2,8 @@
 docs/archive/
 # downloaded source texts are never committed; `buddha sync` fetches them
 data/
+# eval reports are generated; CI posts them on the PR
+evals/reports/
 # local Claude Code state
 .claude/settings.local.json
 .claude/worktrees/

@@ -20,7 +20,7 @@ buddha-gpt/
 └── docker-compose.yml   Postgres 18 + pgvector                                        :5432
 ```
 
-`apps/*` are deployed apps, `services/*` are hosted backends, and `packages/*` are shared libraries. Add to `packages/shared` only what both the web app and the agent use. `evals/` arrives in Phase 5 (PRD §12).
+`apps/*` are deployed apps, `services/*` are hosted backends, and `packages/*` are shared libraries. Add to `packages/shared` only what both the web app and the agent use. `evals/cases/*.jsonl` are the eval cases; reports go to `evals/reports/` (git-ignored).
 
 ## Stack
 
@@ -41,7 +41,7 @@ pnpm lint                 # ESLint, type checks, go vet
 pnpm test                 # TypeScript tests (agent, web), then go test
 pnpm sync                 # download, parse, load and embed the texts
 pnpm search "anatta"      # the top passages for a query (hybrid, or lexical without a key)
-pnpm eval                 # run the eval suite (Phase 5)
+pnpm eval                 # evals/cases against the agent, which must run with EVAL_MODE=1
 pnpm diagram              # regenerate docs/services.svg
 ```
 

@@ -322,7 +322,9 @@ There are no chat tables: history stays in the browser.
 | Missed declines / needless refusals | ≤ 1 / ≤ 2 |
 | Faithfulness, judged 1–5 | ≥ 4.0 |
 
-- The judge is a different model family from the agent. Calibrate it against 20 replies you've labelled yourself before trusting it.
+- The judge is a different model family from the agent (`JUDGE_MODEL`, `openai/gpt-5-mini` by default) and scores each answer's faithfulness to its cards. Calibrate it against 20 replies you've labelled yourself before trusting it.
+- Each case says what it expects: the route, the sutta for Recall@8, the reply language, a don't-know reply, the verdict on a quote, or words that mustn't appear. `buddha eval` checks the hotline numbers on its own, not from `policy.yaml`, so a policy edit that drops one fails the gate.
+- Without a key the agent's mock answers, and the report says so: it checks the harness and the code paths. Citation validity and fabrication pass even then, because code enforces them; recall, routes and declines need the real guard and embeddings.
 - **CI:** GitHub Actions runs the suite on PRs that touch `prompts/`, `policy.yaml`, the agent or retrieval, and comments the summary on the PR. The built database snapshot lives in private storage fetched with a secret, never as a public file. Forks don't get the secret, so the gate runs on your own branches. One run costs a few dollars.
 
 ## 11. Open source and privacy

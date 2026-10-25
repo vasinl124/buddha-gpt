@@ -2,7 +2,7 @@
 // answers), every sentence passes the checks, and the cards are filled verbatim from the database.
 import { readFileSync } from "node:fs";
 import type { ServerResponse } from "node:http";
-import type { ChatData, Crisis, ReplyLang } from "@buddha-gpt/shared";
+import type { Card, ChatData, Crisis, ReplyLang } from "@buddha-gpt/shared";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -17,7 +17,7 @@ import { z } from "zod";
 import { SentenceGate, fold, isThai } from "./checks.ts";
 import * as core from "./core.ts";
 import { crisisKeyword, guard, type Route } from "./guard.ts";
-import { chatModel } from "./model.ts";
+import { chatModel, modelId } from "./model.ts";
 import { policy } from "./policy.ts";
 
 export type BuddhaMessage = UIMessage<never, ChatData>;
@@ -61,7 +61,9 @@ const NOTE: Record<Route, string> = {
   answer: "Route: answer.",
 };
 
-export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: ReplyLang = "auto"): Promise<void> {
+/** evalMode answers with one JSON object (the reply, its cards, and a debug block) instead of a
+ * stream, for `buddha eval` (PRD §10). */
+export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: ReplyLang = "auto", evalMode = false): Promise<void> {
   const history = untrusted(messages);
   const latest = textOf(history.findLast((m) => m.role === "user"));
   // the reply language: forced by the switch, or detected (PRD §5.1); Pali mode keeps the
@@ -103,6 +105,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
   let pinned = ""; // a card code shows even if it isn't cited: a decline's teaching, a quote's match
   let opening = ""; // a sentence code writes before the reply: the verdict on a quote
   let fixed = ""; // a reply code writes instead of the model's
+  let searched: string[] = [];
   const paliText = new Map<string, string>(); // Pali mode: what each quotable passage says, verbatim
   if (route === "decline") {
     const id = g.decline_topic ? policy.decline[g.decline_topic] : null;
@@ -116,6 +119,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
     try {
       const r = await core.search(g.search_query || latest, 8, exclude);
       passages = r.hits;
+      searched = r.hits.map((h) => h.id);
       if (!(r.top_lexical > 0 || r.top_cosine >= policy.dont_know.min_cosine)) fixed = TEXT.dontKnow[lang];
       if (g.quote) {
         // the words someone attributes to the Buddha are looked up in code (PRD §6)
@@ -161,6 +165,25 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
   };
 
   const { model, mock } = chatModel(() => (pali ? order.filter((id) => paliText.has(id)) : order), pali);
+  // what happened this turn, for eval mode
+  const debug = {
+    route,
+    lang: pali ? "pi" : lang,
+    risk,
+    searched, // the first search's hits, best first
+    retrieved: order, // every passage the reply could cite
+    cited: [] as string[],
+    dropped: [] as string[],
+    stripped: [] as string[],
+    model: mock ? "mock" : modelId(),
+    mock,
+    tokens: { input: 0, output: 0 },
+  };
+  const count = async (usage: PromiseLike<{ inputTokens?: number; outputTokens?: number }>) => {
+    const u = await usage;
+    debug.tokens.input += u.inputTokens ?? 0;
+    debug.tokens.output += u.outputTokens ?? 0;
+  };
   const nonce = crypto.randomUUID().slice(0, 8);
   const turn = (extra: string) =>
     [
@@ -194,6 +217,9 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
     }
     const end = gate.end();
     end.released.forEach(write);
+    await count(result.totalUsage);
+    debug.dropped.push(...gate.dropped);
+    debug.stripped.push(...gate.strippedIds);
     if (gate.dropped.length || gate.strippedIds.length) {
       console.warn(`checks: dropped ${gate.dropped.length} sentences, stripped ${gate.strippedIds.length} citations`);
     }
@@ -209,6 +235,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
       providerOptions: { openrouter: { reasoning: { effort: "low" } } },
     });
     const named = [...(await result.text).matchAll(QUOTE)].map((m) => m[1]);
+    await count(result.totalUsage);
     const ids = [...new Set(named)].filter((id) => paliText.has(id)).slice(0, 3);
     if (!ids.length) write(TEXT.dontKnow[lang]);
     for (const id of ids) write(`${paliText.get(id)} [[cite:${id}]]\n\n`);
@@ -253,6 +280,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
       if (pali && cited.length) writer.write({ type: "data-pali", data: true });
       // cited cards first, in the order of the reply's numbered chips; then a pinned one if uncited
       const ids = [...new Set([...cited, ...(pinned ? [pinned] : [])])];
+      debug.cited = ids;
       const cards = await core.cards(ids).catch((err) => {
         console.error("cards:", err);
         return [];
@@ -265,7 +293,19 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
       return lang === "th" ? "ขออภัย ตอนนี้ตอบไม่ได้ ลองใหม่อีกครั้ง" : "Sorry, I can't answer right now. Please try again.";
     },
   });
-  await pipeUIMessageStreamToResponse({ response: res, stream });
+  if (!evalMode) {
+    await pipeUIMessageStreamToResponse({ response: res, stream });
+    return;
+  }
+  const out = { reply: "", cards: [] as Card[], crisis: null as Crisis | null, error: "" };
+  for await (const chunk of stream) {
+    if (chunk.type === "text-delta") out.reply += chunk.delta;
+    else if (chunk.type === "data-cards") out.cards = chunk.data;
+    else if (chunk.type === "data-crisis") out.crisis = chunk.data;
+    else if (chunk.type === "error") out.error = chunk.errorText;
+  }
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ...out, debug }));
 }
 
 // The hotlines under a crisis reply, from policy.yaml: the model never writes a number.

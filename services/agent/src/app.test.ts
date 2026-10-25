@@ -161,6 +161,37 @@ test("a Thai question gets a Thai reply; the switch can force English", () =>
     assert.match(forced.text, /^This is a mock reply/);
   }));
 
+test("eval mode answers in JSON with a debug block, and only when EVAL_MODE is on", async () => {
+  delete process.env.OPENROUTER_API_KEY;
+  const core = fakeRetrieval();
+  const agent = createServer(app);
+  try {
+    process.env.RETRIEVAL_URL = await listen(core.server);
+    const url = await listen(agent);
+    const ask = () =>
+      fetch(`${url}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [user("What is suffering?")], eval: true }),
+      });
+    delete process.env.EVAL_MODE;
+    assert.equal((await ask()).status, 403);
+    process.env.EVAL_MODE = "1";
+    const r = (await (await ask()).json()) as any;
+    assert.match(r.reply, /\[\[cite:sn56\.11#en4\]\]/);
+    assert.equal(r.debug.route, "answer");
+    assert.deepEqual(r.debug.searched, ["sn56.11#en4", "dhp1-20#en1"]);
+    assert.deepEqual(r.debug.cited, ["sn56.11#en4", "dhp1-20#en1"]);
+    assert.ok(r.debug.cited.every((id: string) => r.debug.retrieved.includes(id)));
+    assert.equal(r.cards.length, 2);
+    assert.equal(r.debug.mock, true);
+  } finally {
+    delete process.env.EVAL_MODE;
+    agent.close();
+    core.server.close();
+  }
+});
+
 test("bad requests: no user message, or a message over the length limit", () =>
   withAgent(async (post) => {
     assert.equal((await post([])).status, 400);

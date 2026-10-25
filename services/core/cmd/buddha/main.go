@@ -41,8 +41,7 @@ func main() {
 	case "search":
 		err = runSearch(ctx, os.Args[2:])
 	case "eval":
-		fmt.Fprintln(os.Stderr, "buddha eval: not built yet (see the plan in docs/PRD.md §12)")
-		os.Exit(1)
+		err = runEval(ctx, os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "buddha: unknown command %q\n", os.Args[1])
 		os.Exit(2)
