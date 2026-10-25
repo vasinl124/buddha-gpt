@@ -14,7 +14,7 @@
     "eval": "cd services/core && go run ./cmd/buddha eval",
     "lint": "pnpm -r lint && pnpm -r check && cd services/core && go vet ./...",
     "test": "pnpm -r test && cd services/core && go test ./...",
-    "diagram": "node docs/diagrams/services.mjs node_modules/elkjs/lib/elk.bundled.js docs/services.svg"
+    "diagram": "node docs/diagrams/services.mjs docs/services.svg"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",

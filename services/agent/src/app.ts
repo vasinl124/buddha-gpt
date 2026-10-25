@@ -2,6 +2,9 @@ import type { AgentHealth, Status } from "@buddha-gpt/shared";
 import cors from "cors";
 import express from "express";
 
+// Longer than the core's 1 s database probe, so a slow database shows as db "down", not core "down".
+const CORE_TIMEOUT_MS = 2000;
+
 export const app = express();
 
 app.use(cors({ origin: (process.env.CORS_ORIGINS ?? "http://localhost:5005").split(",") }));
@@ -12,7 +15,7 @@ app.get("/healthz", async (_req, res) => {
   let core: Status = "down";
   let db: Status = "unknown";
   try {
-    const r = await fetch(`${retrieval}/healthz`, { signal: AbortSignal.timeout(1000) });
+    const r = await fetch(`${retrieval}/healthz`, { signal: AbortSignal.timeout(CORE_TIMEOUT_MS) });
     const body = (await r.json()) as { db: Status };
     core = "up";
     db = body.db;
