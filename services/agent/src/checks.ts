@@ -24,7 +24,10 @@ export function isThai(s: string): boolean {
   return letters.length > 0 && thai.length / letters.length > 0.3;
 }
 
-const QUOTED = /"([^"]{12,})"/g; // a quoted span long enough to be a claim, on folded text
+// every quoted span, on folded text. Short ones are skipped, but matched all the same, so a closing
+// quote mark can't pair with the next opening one and pass off the words between as a quote
+const QUOTED = /"([^"]*)"/g;
+const CLAIM = 12; // a quoted span at least this long is a claim, and must be copied from a passage
 // a run of Pali: words with Pali diacritics, at most one other word between them. Three or more
 // words of it must be copied from a passage (PRD §5.1); single terms are fine.
 const DIACRITIC = String.raw`[\p{L}’']*[āīūṃṅñṭḍṇḷ][\p{L}’']*`;
@@ -48,22 +51,25 @@ const ABBREV = /\b(ven|mt|dr|st|e\.g|i\.e|cf|vs|etc|no)\.$/i;
 // The end of a sentence: . ? ! or …, closing quotes, then any citation markers, then a space
 // before the next sentence begins.
 const END = /[.?!…]["”’')\]]*(?:\s*\[\[cite:[^\]\s]+\]\])*(\s+)(?=[^\s[])/g;
+// Thai has no full stops, and a space can fall mid-sentence: a Thai sentence ends after its
+// citation markers or at a line break, so a quote is never cut in two and a dropped sentence is
+// a whole claim, never half of one.
+const THAI_END = /\]\](\s+)(?=[^\s[])|\n/;
+// An odd number of double quote marks so far: a quote is open. A sentence never ends inside one,
+// so a quote of two sentences ("Let this form be thus. Let this form not be thus.") is checked whole.
+const insideQuote = (s: string) => (s.match(/["“”]/g)?.length ?? 0) % 2 === 1;
 
 /** Where the first complete sentence in buf ends (after its trailing space), or -1. */
 export function sentenceEnd(buf: string): number {
   END.lastIndex = 0;
   for (let m = END.exec(buf); m; m = END.exec(buf)) {
-    const before = buf.slice(0, m.index + 1);
-    if (!ABBREV.test(before)) return m.index + m[0].length;
+    const end = m.index + m[0].length;
+    if (!ABBREV.test(buf.slice(0, m.index + 1)) && !insideQuote(buf.slice(0, end))) return end;
   }
   const para = buf.indexOf("\n\n");
   if (para >= 0) return para + 2;
-  // Thai has no full stops: a space after Thai text ends a sentence, once it's a useful length
-  if (isThai(buf) && buf.length > 60) {
-    const space = buf.lastIndexOf(" ");
-    if (space > 30) return space + 1;
-  }
-  return -1;
+  const thai = isThai(buf) ? THAI_END.exec(buf) : null;
+  return thai ? thai.index + thai[0].length : -1;
 }
 
 export interface GateEnd {
@@ -169,6 +175,7 @@ export class SentenceGate {
       return null;
     }
     for (const [, quote] of plain.matchAll(QUOTED)) {
+      if (quote.length < CLAIM) continue;
       const q = quote.replace(/^[,.;:\s]+|[,.;:\s]+$/g, "");
       if (![...this.known.values()].some((text) => text.includes(q))) {
         this.dropped.push(raw.trim());

@@ -18,7 +18,7 @@ For decline, the closest of: lottery, fortune, amulets, money, karma, politics, 
 
 ## search_query
 
-The latest message rewritten to stand on its own, using the earlier turns, in English, keeping any Pali terms. "And the second one?" after the four noble truths becomes "the second noble truth, the origin of suffering". "ทุกข์คืออะไร" becomes "what is suffering (dukkha)".
+What to search for: the latest message, made to stand on its own with the earlier turns, as the short English phrase a passage about it would contain, not as a question. "What are the four noble truths?" becomes "the four noble truths". "And the second one?" after them becomes "the second noble truth, the origin of suffering". A question about what something is asks for the passage that defines it: "ทุกข์คืออะไร" and "What is suffering?" become "the noble truth of suffering". Add a Pali term only if the person used one.
 
 ## quote
 

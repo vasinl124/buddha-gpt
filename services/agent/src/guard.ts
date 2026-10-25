@@ -35,12 +35,15 @@ export async function guard(messages: ModelMessage[], latest: string): Promise<G
   const recent = messages.slice(-TURNS);
   while (recent[0]?.role === "assistant") recent.shift(); // the call has to start with the user
   try {
-    // no reasoning: routing doesn't need it, and some providers refuse thinking with a forced schema
     const { output } = await generateText({
       model,
       instructions: PROMPT,
       messages: recent,
       output: Output.object({ schema: Guard }),
+      // a few short fields. Reasoning is off: routing doesn't need it, and a model that thinks by
+      // default (Haiku 5.5) spent the whole cap on thinking and cut the JSON off
+      maxOutputTokens: 1000,
+      providerOptions: { openrouter: { reasoning: { enabled: false } } },
       abortSignal: AbortSignal.timeout(15_000),
     });
     return output;

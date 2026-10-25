@@ -27,6 +27,9 @@ const PROMPT = readFileSync(new URL("../../../prompts/buddha.md", import.meta.ur
 const QUOTE = /\[\[quote:([^\]\s]+)\]\]/g; // Pali mode names a passage this way; code writes it out
 const HISTORY = 20; // the last 10 turns (PRD §9)
 const MAX_STEPS = 4; // the last one has no tools, so the model has to answer
+// per call: a reply is under 120 words, and the rest is room for low-effort reasoning. Without a cap,
+// OpenRouter reserves the model's whole output limit (65,536 tokens) against the account's credit.
+const MAX_OUTPUT = 2000;
 
 // The replies code writes itself.
 const TEXT = {
@@ -171,6 +174,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
   // what happened this turn, for eval mode
   const debug = {
     route,
+    query: g.search_query, // what the guard searched for
     lang: pali ? "pi" : lang,
     risk,
     searched, // the first search's hits, best first
@@ -209,6 +213,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
       messages: withTurn(modelMessages, turn(extra)),
       tools,
       stopWhen: isStepCount(MAX_STEPS),
+      maxOutputTokens: MAX_OUTPUT,
       // only answers use tools, and never on the last step, so the model has to reply
       prepareStep: ({ stepNumber }) => (route !== "answer" || stepNumber === MAX_STEPS - 1 ? { activeTools: [] } : {}),
       providerOptions: { openrouter: { reasoning: { effort: "low" } } },
@@ -235,6 +240,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
       model,
       instructions: PROMPT,
       messages: withTurn(modelMessages, turn("")),
+      maxOutputTokens: MAX_OUTPUT,
       providerOptions: { openrouter: { reasoning: { effort: "low" } } },
     });
     const named = [...(await result.text).matchAll(QUOTE)].map((m) => m[1]);

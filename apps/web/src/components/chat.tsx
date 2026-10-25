@@ -21,7 +21,6 @@ import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { quotesToThaiScript } from "@/lib/pali";
-import { cardAnchor } from "@/lib/refs";
 
 type BuddhaMessage = UIMessage<never, ChatData>;
 
@@ -153,7 +152,7 @@ export function Chat() {
         </InputGroup>
       </form>
       <p className="text-center text-xs text-muted-foreground">
-        An AI reflecting on the Pali Canon, not the Buddha himself. Only the numbered cards quote the texts.
+        An AI reflecting on the Pali Canon, not the Buddha himself. Only the sources under each reply quote the texts.
       </p>
     </div>
   );
@@ -181,12 +180,12 @@ function Turn({ message, thaiScript }: { message: BuddhaMessage; thaiScript: boo
           </Badge>
         )}
         <div lang={pali ? "pi" : undefined}>
-          <MessageResponse components={{ a: CiteLink }}>
-            {linkCitations(pali && thaiScript ? quotesToThaiScript(text) : text, message.id)}
+          <MessageResponse components={{ a: ReplyLink }}>
+            {stripCitations(pali && thaiScript ? quotesToThaiScript(text) : text)}
           </MessageResponse>
         </div>
         {crisis && <Hotlines crisis={crisis} />}
-        <SourceCards replyId={message.id} cards={cards} thaiScript={thaiScript} />
+        <SourceCards cards={cards} thaiScript={thaiScript} />
       </MessageContent>
     </Message>
   );
@@ -220,32 +219,16 @@ function Hotlines({ crisis }: { crisis: Crisis }) {
   );
 }
 
-// [[cite:sn56.11#en5]] → a numbered link to its card, numbered in order of first use (the order
-// the agent sends the cards in).
-function linkCitations(text: string, replyId: string): string {
-  const order: string[] = [];
-  return text.replace(CITE, (_, id: string) => {
-    if (!order.includes(id)) order.push(id);
-    return ` [${order.indexOf(id) + 1}](#${cardAnchor(replyId, id)})`;
-  });
-}
+// The reply reads as plain speech: its [[cite:…]] markers, and the space before each, are dropped.
+// The passages they point at are under the reply, in Sources.
+const CITE_AND_SPACE = new RegExp(String.raw`\s*${CITE.source}`, "g");
+const stripCitations = (text: string) => text.replace(CITE_AND_SPACE, "");
 
-// Streamdown types its link props two ways at once, so both fields are checked, not assumed.
-function CiteLink(props: { href?: unknown; children?: unknown; node?: unknown }) {
-  const href = typeof props.href === "string" ? props.href : undefined;
-  const children = props.children as ReactNode;
-  if (!href?.startsWith("#card-")) {
-    return (
-      <a href={href} target="_blank" rel="noreferrer">
-        {children}
-      </a>
-    );
-  }
+// A link in a reply opens in a new tab. Streamdown types its link props loosely, so href is checked.
+function ReplyLink(props: { href?: unknown; children?: unknown; node?: unknown }) {
   return (
-    <a href={href} className="no-underline" aria-label={`Source ${children}`}>
-      <Badge variant="secondary" className="align-super text-[10px]">
-        {children}
-      </Badge>
+    <a href={typeof props.href === "string" ? props.href : undefined} target="_blank" rel="noreferrer">
+      {props.children as ReactNode}
     </a>
   );
 }

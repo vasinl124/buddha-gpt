@@ -81,8 +81,10 @@ var (
 	dontKnow = []string{"The discourses I can search don't cover this.", "พระสูตรที่เราค้นได้ไม่ได้กล่าวถึงเรื่องนี้"}
 	noQuote  = []string{"The texts I can search don't contain those words.", "พระสูตรที่เราค้นได้ไม่มีถ้อยคำนั้น"}
 	citeMark = regexp.MustCompile(`\[\[cite:[^\]\s]+\]\]`)
-	quoted   = regexp.MustCompile(`["“]([^"”]{12,})["”]`)
-	english  = regexp.MustCompile(`(?i)\b(the|and|is|of)\b`)
+	// every quoted span: fabricated skips the short ones, but matching them keeps a closing mark
+	// from pairing with the next opening one
+	quoted  = regexp.MustCompile(`["“]([^"”]*)["”]`)
+	english = regexp.MustCompile(`(?i)\b(the|and|is|of)\b`)
 )
 
 func runEval(ctx context.Context, args []string) error {
@@ -281,6 +283,9 @@ func fabricated(r evalReply) (string, bool) {
 		return "", false
 	}
 	for _, m := range quoted.FindAllStringSubmatch(reply, -1) {
+		if len([]rune(m[1])) < 12 {
+			continue // a quoted word or two isn't a claim
+		}
 		if !inCards(strings.Trim(m[1], " ,.;:")) && !containsAny(m[0], noQuote) {
 			return m[1], true
 		}

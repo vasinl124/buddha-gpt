@@ -25,6 +25,13 @@ func TestScore(t *testing.T) {
 		t.Errorf("a good answer has problems: %v", ok.Problems)
 	}
 
+	// a short quoted word, then a quote from the card: nothing between them reads as a quote
+	words := evalResult{Case: four, Reply: answer(`Do not call it "self", for it is not lasting. As I taught, "birth is stressful." [[cite:sn56.11#en4]]`)}
+	score(&words)
+	if len(words.Problems) != 0 {
+		t.Errorf("a short quoted word made problems: %v", words.Problems)
+	}
+
 	bad := evalResult{Case: four, Reply: answer(`I said "peace comes from within, do not seek it without."`)}
 	bad.Reply.Debug.Searched = []string{"mn22#en1"}
 	bad.Reply.Debug.Cited = append(bad.Reply.Debug.Cited, "mn999#en1")

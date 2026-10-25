@@ -98,6 +98,37 @@ test("sentence boundaries", () => {
   assert.equal(sentenceEnd("Then Ven. Ānanda went. Next"), "Then Ven. Ānanda went. ".length);
   assert.equal(sentenceEnd("No end yet"), -1);
   assert.equal(sentenceEnd("Done. [[cite:a#en1]] Next"), "Done. [[cite:a#en1]] ".length);
+  // Thai: spaces fall mid-sentence, so only a citation or a line break ends one
+  assert.equal(sentenceEnd("ทุกข์เป็นสิ่งที่ควรกำหนดรู้ และเมื่อกำหนดรู้แล้ว ก็รู้ว่าได้กำหนดรู้แล้ว ยังไม่จบ"), -1);
+  assert.equal(sentenceEnd("ทุกข์ควรกำหนดรู้ [[cite:a#en1]] [[cite:b#th2]] ท่าน"), "ทุกข์ควรกำหนดรู้ [[cite:a#en1]] [[cite:b#th2]] ".length);
+  assert.equal(sentenceEnd("ลองสังเกตดู\nท่าน"), "ลองสังเกตดู\n".length);
+});
+
+test("a Thai quote with spaces in it is checked whole, and its whole sentence is dropped", () => {
+  const g = new SentenceGate(known(), { lang: "th" });
+  const reply =
+    'เราเคยกล่าวว่า "แพนี้มีประโยชน์แก่เรานัก เราได้พึ่งแพนี้ข้ามถึงฝั่งแล้ว" ซึ่งเป็นอุปมา [[cite:sn56.11#en4]] ' +
+    "ความเกิดเป็นทุกข์ [[cite:sn56.11#en4]] ท่านเห็นด้วยไหม\nลองพิจารณาดู";
+  // streamed a few characters at a time, as the model sends it
+  const shown = [...reply.match(/[^]{1,7}/g)!.flatMap((delta) => g.push(delta)), ...g.end().released];
+  assert.deepEqual(shown, ["ความเกิดเป็นทุกข์ [[cite:sn56.11#en4]] ", "ท่านเห็นด้วยไหม\n", "ลองพิจารณาดู"]);
+  assert.equal(g.dropped.length, 1);
+  assert.match(g.dropped[0], /^เราเคยกล่าวว่า/); // the whole claim, so no clause is left hanging
+});
+
+test("a sentence never ends inside a quote, so a two-sentence quote is checked whole", () => {
+  assert.equal(sentenceEnd('“Be thus. Not thus.” Next'), "“Be thus. Not thus.” ".length);
+  const g = new SentenceGate(known(), { requireCite: false });
+  // SN 22.59 has "Let this form be thus. Let this form not be thus.", not these words
+  const shown = [...g.push('He said, "Let my body be thus. Let my body not be thus." Reflect on it. '), ...g.end().released];
+  assert.deepEqual(shown, ["Reflect on it. "]);
+  assert.equal(g.dropped.length, 1);
+});
+
+test("a short quoted word doesn't pair with the next quote", () => {
+  const g = new SentenceGate(known(), { requireCite: false });
+  const s = 'Do not call the body "self", for it is neither lasting nor your own, nor call it "mine". ';
+  assert.deepEqual([...g.push(s), ...g.end().released], [s]);
 });
 
 test("isThai", () => {

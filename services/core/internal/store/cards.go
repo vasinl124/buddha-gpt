@@ -24,9 +24,9 @@ type Card struct {
 // wholeMax is the longest sutta a card shows whole: about one long paragraph.
 const wholeMax = 1500
 
-// Cards fills one card per known ID, in the order given. A sutta's paragraphs line up across
-// languages when both have the same number of them; otherwise the card has only the cited
-// language and the UI links to the whole sutta.
+// Cards fills one card per known ID, in the order given. Where a sutta's paragraphs line up
+// across languages (lineUp), the card has the cited paragraph in each; otherwise it has only the
+// cited language and the UI links to the whole sutta.
 func (s *Store) Cards(ctx context.Context, ids []string) ([]Card, error) {
 	out := []Card{}
 	for _, id := range ids {
@@ -43,14 +43,15 @@ func (s *Store) Cards(ctx context.Context, ids []string) ([]Card, error) {
 		if err != nil {
 			return nil, fmt.Errorf("card %s: %w", id, err)
 		}
-		// per language: how many paragraphs the sutta has, and the text of paragraph ord
-		rows, err := s.Pool.Query(ctx, `select lang, max(ord),
+		// per language: the length of each of the sutta's paragraphs, in order, and the text of
+		// paragraph ord
+		rows, err := s.Pool.Query(ctx, `select lang, sum(length(text)),
 			string_agg(text, ' ' order by part) filter (where ord = $2)
-			from paras where sutta_id = $1 group by lang`, c.SuttaID, ord)
+			from paras where sutta_id = $1 group by lang, ord order by lang, ord`, c.SuttaID, ord)
 		if err != nil {
 			return nil, err
 		}
-		count := map[string]int{}
+		lens := map[string][]int{}
 		texts := map[string]*string{}
 		for rows.Next() {
 			var l string
@@ -60,15 +61,18 @@ func (s *Store) Cards(ctx context.Context, ids []string) ([]Card, error) {
 				rows.Close()
 				return nil, err
 			}
-			count[l], texts[l] = n, t
+			lens[l] = append(lens[l], n)
+			if t != nil {
+				texts[l] = t
+			}
 		}
 		rows.Close()
 		if err := rows.Err(); err != nil {
 			return nil, err
 		}
 		c.Texts = map[string]string{}
-		for l, t := range texts {
-			if t != nil && (l == lang || count[l] == count[lang]) {
+		for l := range lens {
+			if t := texts[l]; t != nil && (l == lang || lineUp(lens[l], lens[lang])) {
 				c.Texts[l] = *t
 				continue
 			}
@@ -88,6 +92,27 @@ func (s *Store) Cards(ctx context.Context, ids []string) ([]Card, error) {
 		out = append(out, c)
 	}
 	return out, nil
+}
+
+// lineUp reports whether two languages' paragraphs of a sutta, given as their lengths in order,
+// pair up one to one: as many of them, and each one's share of the sutta within a factor of two
+// of its partner's. A count can match by chance: MN 10 has 94 paragraphs in Pali and in English,
+// which drift apart midway, and pairing them would put the wrong translation on a card.
+func lineUp(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	var ta, tb int
+	for i := range a {
+		ta, tb = ta+a[i], tb+b[i]
+	}
+	for i := range a {
+		// a[i]/ta against b[i]/tb, cross-multiplied
+		if x, y := a[i]*tb, b[i]*ta; x > 2*y || y > 2*x {
+			return false
+		}
+	}
+	return true
 }
 
 // Passage returns paragraph id with up to window paragraphs either side, in the same sutta and

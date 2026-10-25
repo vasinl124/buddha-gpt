@@ -4,7 +4,7 @@ name: Eval
 # a reply, and comments the report. It needs two secrets, so it skips until they exist:
 #   OPENROUTER_API_KEY  the agent's and the judge's models
 #   EVAL_DB_URL         a private URL to a pg_dump of a synced database, with embeddings
-# Forks don't get secrets, so the gate runs on branches of this repo. One run costs a few dollars.
+# Forks don't get secrets, so the gate runs on branches of this repo. One run costs under ten cents.
 
 on:
   pull_request:

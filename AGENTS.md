@@ -43,6 +43,7 @@ pnpm sync                 # download, parse, load and embed the texts
 pnpm search "anatta"      # the top passages for a query (hybrid, or lexical without a key)
 pnpm eval                 # evals/cases against the agent, which must run with EVAL_MODE=1
 pnpm diagram              # regenerate docs/services.svg
+pnpm media                # re-capture the README screenshots and demo (docs/media/) from the running app
 ```
 
 ## Ports

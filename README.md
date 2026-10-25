@@ -1,8 +1,20 @@
 # Buddha GPT
 
-Talk with the Buddha in English, Thai or Pali. Every teaching he relies on appears under his reply as the real passage, in Pali, Thai and English, with its source. He never invents scripture.
+Talk with the Buddha in English, Thai or Pali. He answers in plain speech, and Sources under each reply opens the real passages he drew on, in Pali, Thai and English. He never invents scripture.
 
-> **Status:** every phase of the plan is built: a chat in English or Thai, or in Pali mode, where every citation opens a card with the real passage in Pali, Thai and English; guardrails (a crisis message gets hotline numbers, a lottery request gets a kind no, a made-up quote gets an honest answer); and an eval suite that gates pull requests. Real replies need an `OPENROUTER_API_KEY`; without one, a mock model shows the whole flow. The design and the plan are in [docs/PRD.md](docs/PRD.md).
+![A Thai question, Pāli mode, a popular quote checked, a lottery request and a crisis message](docs/media/demo.gif)
+
+[Watch the demo as a video](docs/media/demo.mp4). The design and the plan are in [docs/PRD.md](docs/PRD.md).
+
+| Sources opens the passages behind an answer, here in Pali, Thai and English | Ask in Thai, and he answers in Thai |
+|---|---|
+| ![An answer about the four noble truths, with its sources open](docs/media/answer.png) | ![A Thai question answered in Thai with the noble truth of suffering, its sources folded below](docs/media/thai.png) |
+| **Pāli mode answers in the canon's own words, here in Thai script** | **A popular quote, checked: a similar teaching, in different words** |
+| ![Pāli mode: the reply is the canon's own Pali, shown in Thai script](docs/media/pali.png) | ![Asked whether the Buddha said a popular quote, the app checks the texts and says what they hold](docs/media/quote.png) |
+| **Lottery numbers get a kind no, with a teaching** | **A crisis message gets the right numbers at once** |
+| ![A Thai lottery request gets a kind no, its source folded below](docs/media/decline.png) | ![A crisis message answered with Thailand's hotline numbers](docs/media/crisis.png) |
+
+These replies come from DeepSeek V4 Flash, the default model. Real replies need an `OPENROUTER_API_KEY`; without one, a mock model shows the whole flow. `pnpm media` re-captures these pictures and the demo from the running app.
 
 ![Every service and how it talks to the others](docs/services.svg)
 

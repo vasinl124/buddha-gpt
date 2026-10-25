@@ -4,7 +4,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { simulateReadableStream, type LanguageModel } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
 
-export const modelId = () => process.env.AGENT_MODEL || "anthropic/claude-opus-5.5";
+export const modelId = () => process.env.AGENT_MODEL || "deepseek/deepseek-v4-flash-0731";
 
 /** The OpenRouter model, or null without a key. */
 export function guardModel(): LanguageModel | null {
