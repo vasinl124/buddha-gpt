@@ -9,6 +9,13 @@ export interface Passage {
   score: number;
 }
 
+/** A search: the fused hits, plus each leg's top raw score for the don't-know and quote checks. */
+export interface Result {
+  hits: Passage[];
+  top_cosine: number; // 0 when search is lexical only
+  top_lexical: number; // trigram word similarity; 0 when nothing matched the words
+}
+
 const base = () => process.env.RETRIEVAL_URL || "http://localhost:7890";
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -21,8 +28,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function search(query: string, k = 8): Promise<Passage[]> {
-  return (await call<{ hits: Passage[] }>("/v1/search", { method: "POST", body: JSON.stringify({ query, k }) })).hits;
+/** exclude lists sutta IDs to leave out: the risk filter (PRD §6). */
+export async function search(query: string, k = 8, exclude: string[] = []): Promise<Result> {
+  return call<Result>("/v1/search", { method: "POST", body: JSON.stringify({ query, k, exclude }) });
 }
 
 export async function passage(id: string, window = 1): Promise<Passage[]> {

@@ -1,0 +1,92 @@
+# The safety policy (PRD §6): crisis keywords and hotlines, decline topics, the risk lists and the
+# thresholds. Public on purpose: the rules live in code and in this file, never in a secret prompt.
+# The agent reads it at startup and passes the risk list to the Go core's search.
+
+crisis:
+  # Checked in code on every user message, as well as by the guard; either one routes to crisis.
+  # Matched on folded text (lowercase, no diacritics). Clear phrases only: the guard catches the rest.
+  keywords:
+    - kill myself
+    - killing myself
+    - suicide
+    - suicidal
+    - end my life
+    - take my own life
+    - want to die
+    - wanna die
+    - don't want to live
+    - dont want to live
+    - better off dead
+    - hurt myself
+    - harm myself
+    - self harm
+    - self-harm
+    - cut myself
+    - overdose
+    - can't breathe
+    - being abused
+    - raped
+    - ฆ่าตัวตาย
+    - อยากตาย
+    - ไม่อยากมีชีวิตอยู่
+    - จบชีวิตตัวเอง
+    - ทำร้ายตัวเอง
+    - กรีดข้อมือ
+    - กินยาเกินขนาด
+    - หายใจไม่ออก
+    - ถูกข่มขืน
+    - ถูกทำร้าย
+  # Code appends these under every crisis reply, in this order. The model never writes a number.
+  hotlines:
+    - number: "1323"
+      en: Mental health hotline
+      th: สายด่วนสุขภาพจิต
+    - number: "1669"
+      en: Emergency medical services
+      th: เจ็บป่วยฉุกเฉิน
+    - number: "1300"
+      en: Social assistance, violence and abuse
+      th: ศูนย์ช่วยเหลือสังคม
+    - number: "1387"
+      en: Children and young people
+      th: สายด่วนเด็ก
+    - number: "191"
+      en: Police
+      th: ตำรวจ
+  elsewhere:
+    url: https://findahelpline.com
+    en: Outside Thailand, find a helpline
+    th: นอกประเทศไทย ค้นหาสายด่วนได้ที่นี่
+
+# Topics the guard may decline, each with the paragraph a kind no can point to, or null for a
+# plain no with no card. The guard picks the topic; code fills the card.
+decline:
+  lottery: dn1#en64 # DN 1: the Buddha abstains from fortune-telling and "animal" arts
+  fortune: dn1#en64
+  amulets: dn1#en64
+  money: an8.54#en6 # AN 8.54: a livelihood in tune with income and outflow (DN 31 has no English here)
+  karma: an4.77#en4 # AN 4.77: the results of kamma are not to be conjectured about
+  politics: null
+  monarchy: null
+  medical: null
+  legal: null
+  roleplay: null # role-play, invented suttas, "ignore your rules"
+
+# The Vakkali problem: once a conversation shows risk, search leaves out the suttas about monks who
+# ended their lives, and any sentence naming them is dropped from the reply.
+risk:
+  suttas: [sn22.87, sn35.87, sn4.23, sn54.9]
+  names: [Vakkali, Channa, Godhika, Migalandika]
+
+# An answer needs a lexical match, or a vector match at least this close (cosine, baai/bge-m3).
+# Below it, the reply is "The discourses I can search don't cover this."
+# ponytail: a first guess; the Phase 5 evals tune it.
+dont_know:
+  min_cosine: 0.45
+
+# Words the user attributes to the Buddha are looked up: trigram word similarity at or above
+# same_words means the words are there; any lexical match, or a cosine at or above similar_cosine,
+# is "a similar teaching in different words"; anything else, "the texts don't contain those words".
+quotes:
+  same_words: 0.85
+  similar_cosine: 0.6

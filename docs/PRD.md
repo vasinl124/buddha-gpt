@@ -89,7 +89,7 @@ Every turn gets exactly one route before anything is shown:
 | Route | When | What he does |
 |---|---|---|
 | Crisis | Self-harm, a medical emergency, abuse, a threat to someone | Plain words, no similes. Code appends the hotlines: in Thailand 1323 (mental health), 1669 (emergency medical), 1300 (social assistance), 1387 (children), 191 (police); elsewhere findahelpline.com |
-| Decline | Lottery numbers, fortune-telling, amulet powers; present-day politics and the monarchy; claims about anyone's karma or rebirth; personal medical, legal or financial advice; role-play, invented suttas, "ignore your rules" | One or two kind sentences, with a teaching where one fits: lottery → DN 1, stock tips → DN 31, karma → AN 4.77. Politics and the monarchy get a plain no and no card |
+| Decline | Lottery numbers, fortune-telling, amulet powers; present-day politics and the monarchy; claims about anyone's karma or rebirth; personal medical, legal or financial advice; role-play, invented suttas, "ignore your rules" | One or two kind sentences, with a teaching where one fits: lottery → DN 1, stock tips → AN 8.54 (a livelihood in tune; DN 31 has no English in our sources), karma → AN 4.77. Politics and the monarchy get a plain no and no card |
 | Redirect | A fair request in the wrong place ("fix my code") | One line on what he can help with |
 | Chat | Greetings, thanks, questions about the app | Short and warm |
 | Don't know | Nothing he can search answers it | "The discourses I can search don't cover this." Never "the texts are silent", except for curated cases |
@@ -152,7 +152,7 @@ buddha-gpt/
 ├── packages/
 │   └── shared/          @buddha-gpt/shared · TS types for web and agent: cards, routes, languages
 ├── prompts/             buddha.md, guard.md · any edit triggers the eval gate
-├── policy.yaml          routes, decline list, crisis resources, risk lists · read by the agent and Go
+├── policy.yaml          crisis words and hotlines, decline topics, risk lists, thresholds · read by the agent
 ├── evals/               cases/*.jsonl · reports/
 ├── data/                git-ignored: downloaded sources
 ├── docs/                PRD.md and diagrams
@@ -294,7 +294,7 @@ There are no chat tables: history stays in the browser.
 
 ![One chat turn, step by step: retrieval, generation, then checks and cards](chat-turn.svg)
 
-1. **Guard, then the first search.** Code checks crisis keywords and length. The guard reads the recent turns and returns the route, any crisis types, the language and `search_query`: the latest message rewritten to stand on its own. So "and the second one?" after the four noble truths becomes "the second noble truth, the origin of suffering". As soon as that field streams in, code calls `POST /v1/search` with it for the top 8.
+1. **Guard, then the first search.** Code checks crisis keywords and length. The guard reads the recent turns and returns the route, the decline topic, any words the user attributes to the Buddha, and `search_query`: the latest message rewritten to stand on its own. So "and the second one?" after the four noble truths becomes "the second noble truth, the origin of suffering". Code then calls `POST /v1/search` with it for the top 8, leaving out the risk suttas once the conversation shows risk. The language comes from code (§5.1), not the guard. Streaming the guard so search starts as soon as `search_query` arrives is a later latency win.
 2. **Reply.** `streamText` with `search_canon` and `get_passage`, at most 4 steps, the last one without tools. The model cites by ID (`[[cite:mn10#en12]]`), or in Pali mode quotes by ID (`[[quote:…]]`).
 3. **Checks, one sentence at a time.** Nothing reaches the browser until it passes:
    - citations must be IDs retrieved in this turn; any others are stripped;

@@ -62,6 +62,13 @@ test("drops an uncited preamble before a tool call, and keeps steps apart", () =
   assert.deepEqual(g.end().released, ["Reflect."]);
 });
 
+test("without requireCite, sentences show at once; blocked words drop the sentence", () => {
+  const g = new SentenceGate(known(), { requireCite: false, blocked: /\bvakkali\b|\d{3,}/ });
+  assert.deepEqual(g.push("You are not alone. Ven. Vakkāli was ill too. Call 1323 now. Breathe. "), ["You are not alone. "]);
+  assert.deepEqual(g.end().released, ["Breathe. "]);
+  assert.equal(g.dropped.length, 2);
+});
+
 test("sentence boundaries", () => {
   assert.equal(sentenceEnd("Then Ven. Ānanda went. Next"), "Then Ven. Ānanda went. ".length);
   assert.equal(sentenceEnd("No end yet"), -1);

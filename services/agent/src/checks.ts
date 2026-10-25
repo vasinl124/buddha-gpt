@@ -1,6 +1,7 @@
 // The checks every sentence of a reply passes before it reaches the browser (PRD §9): citations
-// must point at passages retrieved in this turn, and quoted words must be copied from one. An
-// answer is held back until its first valid citation, so nothing ungrounded is ever shown.
+// must point at passages retrieved in this turn, quoted words must be copied from one, and blocked
+// words (the risk names) never show. An answer is held back until its first valid citation, so
+// nothing ungrounded is ever shown.
 import { CITE } from "@buddha-gpt/shared";
 
 /** Folds text for comparison: no diacritics, one quote style, lowercase, single spaces. */
@@ -54,16 +55,28 @@ export interface GateEnd {
   dropped: string[]; // sentences removed for a quote that matches no passage
 }
 
+export interface GateOptions {
+  /** Hold the reply until its first valid citation: answers do, crisis, decline and chat don't. */
+  requireCite?: boolean;
+  /** Drop any sentence whose folded text matches (risk names; numbers and links on a crisis turn). */
+  blocked?: RegExp;
+}
+
 export class SentenceGate {
   private buf = "";
   private held: string[] = [];
-  private grounded = false;
+  private grounded: boolean;
   private cited: string[] = [];
   readonly dropped: string[] = [];
   readonly strippedIds: string[] = [];
 
   /** known maps each passage ID retrieved this turn to its folded text; tools add to it. */
-  constructor(private known: Map<string, string>) {}
+  constructor(
+    private known: Map<string, string>,
+    private opts: GateOptions = {},
+  ) {
+    this.grounded = opts.requireCite === false;
+  }
 
   /** Adds streamed text and returns the sentences now safe to show. */
   push(delta: string): string[] {
@@ -127,6 +140,10 @@ export class SentenceGate {
       return marker;
     });
     const plain = fold(s.replace(CITE, ""));
+    if (this.opts.blocked?.test(plain)) {
+      this.dropped.push(raw.trim());
+      return null;
+    }
     for (const [, quote] of plain.matchAll(QUOTED)) {
       const q = quote.replace(/^[,.;:\s]+|[,.;:\s]+$/g, "");
       if (![...this.known.values()].some((text) => text.includes(q))) {

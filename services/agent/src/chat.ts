@@ -1,8 +1,8 @@
-// One chat turn (PRD §9): search first in code, then the model with tools, then every sentence
-// through the checks, then the cards, filled verbatim from the database.
+// One chat turn (PRD §9): the guard routes it, code searches, the model replies (with tools when it
+// answers), every sentence passes the checks, and the cards are filled verbatim from the database.
 import { readFileSync } from "node:fs";
 import type { ServerResponse } from "node:http";
-import type { ChatData } from "@buddha-gpt/shared";
+import type { ChatData, Crisis } from "@buddha-gpt/shared";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -16,28 +16,72 @@ import {
 import { z } from "zod";
 import { SentenceGate, fold, isThai } from "./checks.ts";
 import * as core from "./core.ts";
+import { crisisKeyword, guard, type Route } from "./guard.ts";
 import { chatModel } from "./model.ts";
+import { policy } from "./policy.ts";
 
 export type BuddhaMessage = UIMessage<never, ChatData>;
+type Lang = "en" | "th";
 
 const PROMPT = readFileSync(new URL("../../../prompts/buddha.md", import.meta.url), "utf8");
 const HISTORY = 20; // the last 10 turns (PRD §9)
 const MAX_STEPS = 4; // the last one has no tools, so the model has to answer
 
-const DONT_KNOW = {
-  en: "The discourses I can search don't cover this.",
-  th: "พระสูตรที่เราค้นได้ไม่ได้กล่าวถึงเรื่องนี้",
+// The replies code writes itself.
+const TEXT = {
+  dontKnow: { en: "The discourses I can search don't cover this.", th: "พระสูตรที่เราค้นได้ไม่ได้กล่าวถึงเรื่องนี้" },
+  // retrieval is down: honest about the failure, never claiming the texts are silent (PRD §9)
+  cantRecall: {
+    en: "I can't recall the exact words right now. Please ask again in a little while.",
+    th: "ตอนนี้เรายังนึกถ้อยคำที่แน่ชัดไม่ออก ลองถามใหม่อีกสักครู่",
+  },
+  // a crisis turn whose reply failed: the hotlines still show (PRD §9)
+  crisis: {
+    en: "I'm here with you. You don't have to carry this alone. Please reach out now to one of the people below.",
+    th: "เราอยู่ตรงนี้กับท่าน ท่านไม่ต้องแบกเรื่องนี้ไว้ลำพัง โปรดติดต่อผู้ที่ช่วยได้ด้านล่างนี้ทันที",
+  },
+  crisisTitle: { en: "If you might be in danger, please reach out now", th: "หากท่านอาจตกอยู่ในอันตราย โปรดติดต่อทันที" },
+  quoteFound: { en: "Those words are in the discourses I can search.", th: "ถ้อยคำนั้นมีอยู่ในพระสูตรที่เราค้นได้" },
+  quoteSimilar: {
+    en: "The texts I can search hold a similar teaching, in different words.",
+    th: "พระสูตรที่เราค้นได้มีคำสอนที่คล้ายกัน แต่ใช้ถ้อยคำต่างกัน",
+  },
+  quoteNone: { en: "The texts I can search don't contain those words.", th: "พระสูตรที่เราค้นได้ไม่มีถ้อยคำนั้น" },
 };
-// when retrieval is down: honest about the failure, never claiming the texts are silent (PRD §9)
-const CANT_RECALL = {
-  en: "I can't recall the exact words right now. Please ask again in a little while.",
-  th: "ตอนนี้เรายังนึกถ้อยคำที่แน่ชัดไม่ออก ลองถามใหม่อีกสักครู่",
+
+// What the reply model is told for each route, in this turn's note.
+const NOTE: Record<Route, string> = {
+  crisis:
+    "Route: crisis. The person may be in danger. Reply in plain, warm words, with no simile, no teaching and no citation. " +
+    "Don't write phone numbers or links: the app shows the right ones under your reply.",
+  decline: "Route: decline. In one or two kind sentences, say you won't do what was asked. If a passage is given, point to its teaching and cite it.",
+  redirect: "Route: redirect. In one line, say what you can help with: the teachings, and what weighs on the person.",
+  chat: "Route: chat. Reply briefly and warmly, in one or two sentences, with no citation.",
+  answer: "Route: answer.",
 };
 
 export async function chat(messages: BuddhaMessage[], res: ServerResponse): Promise<void> {
   const history = untrusted(messages);
-  const question = textOf(history.findLast((m) => m.role === "user"));
-  const lang = isThai(question) ? "th" : "en";
+  const latest = textOf(history.findLast((m) => m.role === "user"));
+  const lang: Lang = isThai(latest) ? "th" : "en";
+  const modelMessages = await convertToModelMessages(history);
+
+  // crisis words skip the guard, so the hotlines show without waiting for a model call
+  const g = crisisKeyword(latest)
+    ? ({ route: "crisis", decline_topic: null, search_query: latest, quote: "" } as const)
+    : await guard(modelMessages, latest);
+  const route: Route = g.route;
+  // Risk stays on once any turn showed it (PRD §9): this route, an earlier reply's risk flag, or
+  // crisis words anywhere in the history. Then search leaves out the risk suttas.
+  const risk =
+    route === "crisis" ||
+    messages.some((m) => m.parts?.some((p) => p.type === "data-risk")) ||
+    history.some((m) => m.role === "user" && crisisKeyword(textOf(m)));
+  const exclude = risk ? policy.risk.suttas : [];
+  const blocked = [
+    ...(risk ? [`\\b(?:${policy.risk.names.map((n) => fold(n)).join("|")})\\b`] : []),
+    ...(route === "crisis" ? [String.raw`\d{3,}|https?:|www\.`] : []), // code owns every number and link
+  ];
 
   // passages retrieved this turn, by ID: the only ones a reply may cite
   const known = new Map<string, string>();
@@ -50,15 +94,40 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
     return ps.map(({ id, sutta_id, text }) => ({ id, sutta_id, text }));
   };
 
-  let note = "Retrieval: ok.";
-  let down = false;
+  let note = NOTE[route];
   let passages: core.Passage[] = [];
-  try {
-    passages = await core.search(question, 8);
-  } catch (err) {
-    console.error("search:", err);
-    down = true;
-    note = "Retrieval: unavailable right now. Say you can't recall the exact words, never that the texts are silent.";
+  let pinned = ""; // a card code shows even if it isn't cited: a decline's teaching, a quote's match
+  let opening = ""; // a sentence code writes before the reply: the verdict on a quote
+  let fixed = ""; // a reply code writes instead of the model's
+  if (route === "decline") {
+    const id = g.decline_topic ? policy.decline[g.decline_topic] : null;
+    if (id) {
+      passages = (await core.passage(id, 0).catch(() => [])).filter((p) => p.id === id);
+      pinned = passages.length ? id : "";
+    } else {
+      note += " Give a plain, kind no, with no teaching and no citation.";
+    }
+  } else if (route === "answer") {
+    try {
+      const r = await core.search(g.search_query || latest, 8, exclude);
+      passages = r.hits;
+      if (!(r.top_lexical > 0 || r.top_cosine >= policy.dont_know.min_cosine)) fixed = TEXT.dontKnow[lang];
+      if (g.quote) {
+        // the words someone attributes to the Buddha are looked up in code (PRD §6)
+        const q = await core.search(g.quote, 3, exclude);
+        const same = q.top_lexical >= policy.quotes.same_words;
+        const similar = !same && (q.top_lexical > 0 || q.top_cosine >= policy.quotes.similar_cosine);
+        opening = TEXT[same ? "quoteFound" : similar ? "quoteSimilar" : "quoteNone"][lang];
+        if ((same || similar) && q.hits[0]) {
+          passages = [q.hits[0], ...passages];
+          pinned = q.hits[0].id;
+        }
+        note += ` The person attributed these words to the Buddha: "${escapeTags(g.quote)}". The app has already told them: "${opening}" Don't repeat it, and never claim you said those words.`;
+      }
+    } catch (err) {
+      console.error("search:", err);
+      fixed = TEXT.cantRecall[lang];
+    }
   }
   remember(passages);
 
@@ -66,62 +135,91 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
     search_canon: tool({
       description: "Search the Pali Canon (English translations and the Pali) for passages you can cite by ID.",
       inputSchema: z.object({ query: z.string().describe("what to look for: a question, words or Pali terms") }),
-      execute: async ({ query }) => remember(await core.search(query, 8)),
+      execute: async ({ query }) => remember((await core.search(query, 8, exclude)).hits),
     }),
     get_passage: tool({
       description: "Read a passage with the paragraphs around it, by its ID.",
       inputSchema: z.object({ id: z.string(), window: z.number().int().min(0).max(3).optional() }),
-      execute: async ({ id, window }) => remember(await core.passage(id, window ?? 1)),
+      execute: async ({ id, window }) => (exclude.includes(id.split("#")[0]) ? [] : remember(await core.passage(id, window ?? 1))),
     }),
   };
 
   const { model, mock } = chatModel(() => order);
-  const turn = [
-    `Reply in ${lang === "th" ? "Thai" : "English"}. ${note}`,
-    `<passages nonce="${crypto.randomUUID().slice(0, 8)}">`,
-    ...passages.map((p) => `[${p.id}] ${p.text}`),
-    "</passages>",
-  ].join("\n");
+  const nonce = crypto.randomUUID().slice(0, 8);
+  const turn = (extra: string) =>
+    [
+      `Reply in ${lang === "th" ? "Thai" : "English"}. ${note}${extra}`,
+      `<passages nonce="${nonce}">`,
+      ...passages.map((p) => `[${p.id}] ${p.text}`),
+      "</passages>",
+    ].join("\n");
 
-  const result = streamText({
-    model,
-    instructions: PROMPT, // stable, so it can be cached; this turn's passages ride on the message
-    messages: withTurn(await convertToModelMessages(history), turn),
-    tools,
-    stopWhen: isStepCount(MAX_STEPS),
-    prepareStep: ({ stepNumber }) => (stepNumber === MAX_STEPS - 1 ? { activeTools: [] } : {}),
-    providerOptions: { openrouter: { reasoning: { effort: "low" } } },
-  });
+  // One attempt at the reply, streamed through a fresh gate sentence by sentence.
+  async function attempt(write: (delta: string) => void, extra = "") {
+    const gate = new SentenceGate(known, {
+      requireCite: route === "answer",
+      blocked: blocked.length ? new RegExp(blocked.join("|")) : undefined,
+    });
+    const result = streamText({
+      model,
+      instructions: PROMPT, // stable, so it can be cached; this turn's passages ride on the message
+      messages: withTurn(modelMessages, turn(extra)),
+      tools,
+      stopWhen: isStepCount(MAX_STEPS),
+      // only answers use tools, and never on the last step, so the model has to reply
+      prepareStep: ({ stepNumber }) => (route !== "answer" || stepNumber === MAX_STEPS - 1 ? { activeTools: [] } : {}),
+      providerOptions: { openrouter: { reasoning: { effort: "low" } } },
+    });
+    for await (const part of result.stream) {
+      if (part.type === "text-delta") gate.push(part.text).forEach(write);
+      else if (part.type === "finish-step") gate.endStep(part.finishReason === "tool-calls").forEach(write);
+      else if (part.type === "error") throw part.error;
+    }
+    const end = gate.end();
+    end.released.forEach(write);
+    if (gate.dropped.length || gate.strippedIds.length) {
+      console.warn(`checks: dropped ${gate.dropped.length} sentences, stripped ${gate.strippedIds.length} citations`);
+    }
+    return end;
+  }
 
   const stream = createUIMessageStream<BuddhaMessage>({
     async execute({ writer }) {
+      const id = "reply";
+      let shown = 0;
+      const write = (delta: string) => {
+        shown += delta.trim().length;
+        writer.write({ type: "text-delta", id, delta });
+      };
       writer.write({ type: "start" });
       if (mock) writer.write({ type: "data-notice", data: "Mock model: add OPENROUTER_API_KEY for real answers." });
-      const id = "reply";
+      if (route === "crisis") writer.write({ type: "data-crisis", data: crisis(lang) }); // first, so the numbers show at once
       writer.write({ type: "text-start", id });
-      const gate = new SentenceGate(known);
-      for await (const part of result.stream) {
-        if (part.type === "text-delta") {
-          for (const s of gate.push(part.text)) writer.write({ type: "text-delta", id, delta: s });
-        } else if (part.type === "finish-step") {
-          for (const s of gate.endStep(part.finishReason === "tool-calls")) writer.write({ type: "text-delta", id, delta: s });
-        } else if (part.type === "error") {
-          throw part.error;
+      if (opening) write(`${opening} `);
+      let cited: string[] = [];
+      if (fixed) {
+        if (!opening) write(fixed);
+      } else {
+        try {
+          let end = await attempt(write);
+          if (route === "answer" && !end.grounded) {
+            // nothing has been shown yet: one redraft, then the don't-know reply (PRD §9)
+            end = await attempt(write, "\nYour last draft cited no passage. Answer from the passages, citing an ID in your first or second sentence.");
+            if (!end.grounded && !opening) write(TEXT.dontKnow[lang]);
+          }
+          cited = end.cited;
+        } catch (err) {
+          if (route !== "crisis") throw err;
+          console.error("chat (crisis):", err);
         }
-      }
-      const end = gate.end();
-      for (const s of end.released) writer.write({ type: "text-delta", id, delta: s });
-      if (!end.grounded) {
-        // ponytail: until the guard routes greetings (Phase 3), a short uncited reply counts as chat
-        const held = gate.heldText();
-        const chatty = held.trim() !== "" && held.trim().split(/\s+/).length <= 40 && !held.includes("“") && !held.includes('"');
-        writer.write({ type: "text-delta", id, delta: chatty ? held : (down ? CANT_RECALL : DONT_KNOW)[lang] });
+        if (route === "crisis" && !shown) write(TEXT.crisis[lang]); // failed or empty: never just the numbers
+
       }
       writer.write({ type: "text-end", id });
-      if (gate.dropped.length || gate.strippedIds.length) {
-        console.warn(`checks: dropped ${gate.dropped.length} sentences, stripped ${gate.strippedIds.length} citations`);
-      }
-      const cards = await core.cards(end.cited).catch((err) => {
+      if (risk) writer.write({ type: "data-risk", data: true });
+      // cited cards first, in the order of the reply's numbered chips; then a pinned one if uncited
+      const ids = [...new Set([...cited, ...(pinned ? [pinned] : [])])];
+      const cards = await core.cards(ids).catch((err) => {
         console.error("cards:", err);
         return [];
       });
@@ -136,16 +234,31 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
   await pipeUIMessageStreamToResponse({ response: res, stream });
 }
 
+// The hotlines under a crisis reply, from policy.yaml: the model never writes a number.
+function crisis(lang: Lang): Crisis {
+  return {
+    title: TEXT.crisisTitle[lang],
+    lines: [
+      ...policy.crisis.hotlines.map((h) => ({ label: h[lang], number: h.number })),
+      { label: policy.crisis.elsewhere[lang], url: policy.crisis.elsewhere.url },
+    ],
+  };
+}
+
+// Text from the browser can't open a tag or a citation marker.
+function escapeTags(s: string): string {
+  return s.replaceAll("[[", "[ [").replaceAll("]]", "] ]").replaceAll("<", "‹").replaceAll(">", "›");
+}
+
 // History comes from the browser, so it's untrusted (PRD §9): only user and assistant turns, only
-// their text, and user text can't open a tag or a citation marker.
+// their text, and user text escaped.
 function untrusted(messages: BuddhaMessage[]): BuddhaMessage[] {
-  const esc = (s: string) => s.replaceAll("[[", "[ [").replaceAll("]]", "] ]").replaceAll("<", "‹").replaceAll(">", "›");
   return messages
     .filter((m) => m.role === "user" || m.role === "assistant")
     .slice(-HISTORY)
     .map((m) => ({
       ...m,
-      parts: m.parts.flatMap((p) => (p.type === "text" ? [{ ...p, text: m.role === "user" ? esc(p.text) : p.text }] : [])),
+      parts: (m.parts ?? []).flatMap((p) => (p.type === "text" ? [{ ...p, text: m.role === "user" ? escapeTags(p.text) : p.text }] : [])),
     }))
     .filter((m) => m.parts.length > 0);
 }
