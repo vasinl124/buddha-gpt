@@ -84,6 +84,14 @@ test("three Pali words in a row must come from a passage", () => {
   ]);
   assert.deepEqual(g.end().released, ["Be well. "]);
   assert.equal(g.dropped.length, 1);
+  // names aren't a run of Pali
+  const names = new SentenceGate(pali, { requireCite: false });
+  const shown = [
+    ...names.push("Ānanda and Sāriputta went with Moggallāna. Sāriputta, Moggallāna, Ānanda: all three listened. "),
+    ...names.end().released,
+  ];
+  assert.equal(shown.length, 2);
+  assert.equal(names.dropped.length, 0);
 });
 
 test("sentence boundaries", () => {

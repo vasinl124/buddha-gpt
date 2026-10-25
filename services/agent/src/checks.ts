@@ -30,7 +30,19 @@ const QUOTED = /"([^"]{12,})"/g; // a quoted span long enough to be a claim, on 
 const DIACRITIC = String.raw`[\p{L}’']*[āīūṃṅñṭḍṇḷ][\p{L}’']*`;
 const GAP = String.raw`[\s,;–-]+`;
 const PALI_RUN = new RegExp(`${DIACRITIC}(?:${GAP}(?:[\\p{L}’']+${GAP})?${DIACRITIC})+`, "giu");
+// English between Pali words ("Ānanda and Sāriputta"), or several capitals (a list of names), means
+// it isn't a run of Pali
+const ENGLISH = new Set("and or the of in at to with from by for on as is was are a an but his her its this that".split(" "));
 const lettersOnly = (s: string) => fold(s).replace(/[^\p{L}]+/gu, " ").trim();
+
+function isPaliRun(run: string): boolean {
+  const words = run.split(/[\s,;–-]+/).filter(Boolean);
+  return (
+    words.length >= 3 &&
+    words.filter((w) => /^\p{Lu}/u.test(w)).length <= 1 &&
+    !words.some((w) => ENGLISH.has(w.toLowerCase()))
+  );
+}
 const ABBREV = /\b(ven|mt|dr|st|e\.g|i\.e|cf|vs|etc|no)\.$/i;
 
 // The end of a sentence: . ? ! or …, closing quotes, then any citation markers, then a space
@@ -150,9 +162,7 @@ export class SentenceGate {
     const plain = fold(s.replace(CITE, ""));
     const wrongLang = this.opts.lang && /\p{L}{5}/u.test(plain) && isThai(plain) !== (this.opts.lang === "th");
     const madePali = [...s.replace(CITE, "").matchAll(PALI_RUN)].some(
-      ([run]) =>
-        lettersOnly(run).split(" ").length >= 3 &&
-        ![...this.known.values()].some((text) => lettersOnly(text).includes(lettersOnly(run))),
+      ([run]) => isPaliRun(run) && ![...this.known.values()].some((text) => lettersOnly(text).includes(lettersOnly(run))),
     );
     if (this.opts.blocked?.test(plain) || wrongLang || madePali) {
       this.dropped.push(raw.trim());
