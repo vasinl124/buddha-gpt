@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vasinl124/buddha-gpt/services/core/internal/canon"
@@ -340,28 +341,41 @@ func embedMissing(ctx context.Context, st *store.Store, emb *embed.Client) error
 		return nil
 	}
 	langs := []string{"en", "th"} // one multilingual space (PRD §8.4); Pali is searched by its words only
+	const batch, workers = 64, 6  // batches in flight at once: one at a time took over an hour
 	done := 0
 	for {
-		batch, err := st.MissingVectors(ctx, emb.Model, langs, 64)
-		if err != nil || len(batch) == 0 {
+		todo, err := st.MissingVectors(ctx, emb.Model, langs, batch*workers)
+		if err != nil || len(todo) == 0 {
 			if err == nil {
 				have, total, _ := st.CountVectors(ctx, emb.Model, langs)
 				log.Printf("embeddings (%s): %d of %d paragraphs", emb.Model, have, total)
 			}
 			return err
 		}
-		texts, ids := make([]string, len(batch)), make([]string, len(batch))
-		for i, p := range batch {
-			texts[i], ids[i] = p.Text, p.ID
+		// each round's batches are distinct paragraphs, so they can't overlap
+		var wg sync.WaitGroup
+		errs := make([]error, (len(todo)+batch-1)/batch)
+		for i := range errs {
+			part := todo[i*batch : min((i+1)*batch, len(todo))]
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				texts, ids := make([]string, len(part)), make([]string, len(part))
+				for k, p := range part {
+					texts[k], ids[k] = p.Text, p.ID
+				}
+				vecs, err := emb.Embed(ctx, texts)
+				if err == nil {
+					err = st.SaveVectors(ctx, emb.Model, ids, vecs)
+				}
+				errs[i] = err
+			}()
 		}
-		vecs, err := emb.Embed(ctx, texts)
-		if err != nil {
+		wg.Wait()
+		if err := errors.Join(errs...); err != nil {
 			return err
 		}
-		if err := st.SaveVectors(ctx, emb.Model, ids, vecs); err != nil {
-			return err
-		}
-		if done += len(batch); done%1024 < len(batch) {
+		if done += len(todo); done%1024 < len(todo) {
 			log.Printf("embedded %d paragraphs…", done)
 		}
 	}
