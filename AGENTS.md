@@ -14,11 +14,12 @@ buddha-gpt/
 ├── services/core/       Go module, skipped by pnpm: one `buddha` binary
 │                        (serve = Retrieval API :7890, sync, eval)
 ├── packages/shared/     @buddha-gpt/shared · TS types used by both web and agent
+├── prompts/             buddha.md: the reply prompt, read by the agent at startup
 ├── docs/                PRD.md, diagrams (docs/archive/ is private and git-ignored)
 └── docker-compose.yml   Postgres 18 + pgvector                                        :5432
 ```
 
-`apps/*` are deployed apps, `services/*` are hosted backends, and `packages/*` are shared libraries. Add to `packages/shared` only what both the web app and the agent use. `prompts/`, `policy.yaml` and `evals/` arrive in later phases (PRD §12).
+`apps/*` are deployed apps, `services/*` are hosted backends, and `packages/*` are shared libraries. Add to `packages/shared` only what both the web app and the agent use. `policy.yaml` and `evals/` arrive in later phases (PRD §12).
 
 ## Stack
 
@@ -54,7 +55,7 @@ pnpm diagram              # regenerate docs/services.svg
 
 ## Environment
 
-One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, `EVAL_MODE`, `EMBED_MODEL`, `EMBED_BASE_URL`. The Go core, the agent and Docker Compose read it, and every setting has a local default. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
+One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `AGENT_MODEL`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, `EVAL_MODE`, `EMBED_MODEL`, `EMBED_BASE_URL`. The Go core, the agent and Docker Compose read it, and every setting has a local default. With no `OPENROUTER_API_KEY`, a mock model answers and search is lexical only. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
 
 ## Rules
 

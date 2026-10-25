@@ -114,7 +114,7 @@ Precedence: crisis > decline > redirect > chat > don't know > answer.
 | 1 | Browser → Web app | HTTP | 5005 | the user | Pages and JavaScript |
 | 2 | Browser → Agent | HTTP POST `/api/chat`, reply streamed back as SSE | 7891 | the user | In: the messages (history comes from the browser) and the language switch. Out: the reply, sentence by sentence, then the cards |
 | 3 | Agent → OpenRouter | HTTPS, OpenAI-compatible, streamed | 443 | the user | The guard call, then the reply call with tools |
-| 4 | Agent → Retrieval API | HTTP/JSON: `POST /v1/search`, `GET /v1/passages/{id}` | 7890 | the user | A query and filters in; passages with IDs out |
+| 4 | Agent → Retrieval API | HTTP/JSON: `POST /v1/search`, `GET /v1/passages/{id}`, `POST /v1/cards` | 7890 | the user | A query and filters in; passages with IDs out. Then the cited IDs in; the cards out, verbatim from the database |
 | 5 | Retrieval API → Postgres | SQL (pgx) | 5432 | the user | Hybrid search: pgvector plus trigrams |
 | 6 | Retrieval API → OpenRouter | HTTPS | 443 | the user | Embeds the query (`baai/bge-m3`) |
 | 7 | `buddha sync` → Sources | git clone and HTTPS downloads | 443 | nobody (batch) | VRI XML; Thai PDFs, 5 seconds apart as the site's robots.txt asks; Ṭhānissaro's sutta pages, 4 at a time; public-domain scans |
@@ -186,6 +186,7 @@ buddha-gpt/
 | Variable | Used by | Local default |
 |---|---|---|
 | `OPENROUTER_API_KEY` | agent, Go | — |
+| `AGENT_MODEL` | agent: the reply model on OpenRouter. With no `OPENROUTER_API_KEY`, a mock model answers, so the whole turn can be tried without a key | `anthropic/claude-opus-5.5` |
 | `DATABASE_URL` | Go | `postgres://postgres:postgres@localhost:5432/buddha_gpt` |
 | `POSTGRES_PORT` | Docker Compose: the host port for Postgres, if 5432 is taken | `5432` |
 | `RETRIEVAL_URL` | agent | `http://localhost:7890` |
@@ -198,7 +199,7 @@ buddha-gpt/
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Web | Next.js 16, shadcn/ui (Tailwind), AI Elements | AI Elements, a shadcn-based registry from Vercel, supplies the chat parts: `conversation`, `message`, `prompt-input`, `suggestion` (starter questions) and `inline-citation` (the [1] markers). Cards are shadcn `Card`s. `useChat` points at the agent with `DefaultChatTransport`. Fonts: Noto Sans and Noto Sans Thai through `next/font`, which cover Pali diacritics and Thai |
+| Web | Next.js 16, shadcn/ui (Tailwind), AI Elements | AI Elements, a shadcn-based registry from Vercel, supplies the chat parts: `conversation`, `message` (markdown through Streamdown) and `suggestion` (starter questions). The input is shadcn's `InputGroup`, the [1] markers are `Badge`s that link to their card, and cards are shadcn `Card`s. `useChat` points at the agent with `DefaultChatTransport` and keeps the conversation in `localStorage`. Fonts: Noto Sans and Noto Sans Thai through `next/font`, which cover Pali diacritics and Thai |
 | Agent | Node 22, Express 5, AI SDK 7, `@openrouter/ai-sdk-provider` 3.x | `streamText` → `pipeUIMessageStreamToResponse(res)`; `stopWhen: isStepCount(4)`; `prepareStep` sets `activeTools: []` on the last step; the guard uses `Output.object` |
 | Core | Go 1.26: `net/http`, pgx, pgvector-go | One binary, three commands |
 | Database | Postgres 18, pgvector 0.8 (HNSW), `pg_trgm` | Canon and vectors in one database |

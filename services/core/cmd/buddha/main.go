@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -64,16 +65,27 @@ func serve(ctx context.Context) error {
 		log.Print("no OPENROUTER_API_KEY: search is lexical only")
 	}
 	log.Printf("Retrieval API listening on %s", addr)
-	return http.ListenAndServe(addr, routes(st.Pool.Ping, searcher(st, emb)))
+	return http.ListenAndServe(addr, routes(newLive(st, emb)))
 }
 
-type searchFunc func(ctx context.Context, query string, k int) (store.Result, error)
+// backend is what the HTTP routes need: the store implements it, the tests fake it.
+type backend interface {
+	Ping(ctx context.Context) error
+	Search(ctx context.Context, query string, k int) (store.Result, error)
+	Cards(ctx context.Context, ids []string) ([]store.Card, error)
+	Passage(ctx context.Context, id string, window int) ([]store.Hit, error)
+}
 
-// searcher runs hybrid search, or lexical only when no embedding model is configured.
-func searcher(st *store.Store, emb *embed.Client) searchFunc {
-	var e store.Embedder
+type live struct {
+	st    *store.Store
+	model string
+	embed store.Embedder // nil when no embedding model is configured: search is lexical only
+}
+
+func newLive(st *store.Store, emb *embed.Client) live {
+	l := live{st: st, model: emb.Model}
 	if emb.Ready() {
-		e = func(ctx context.Context, q string) ([]float32, error) {
+		l.embed = func(ctx context.Context, q string) ([]float32, error) {
 			v, err := emb.Embed(ctx, []string{q})
 			if err != nil {
 				return nil, err
@@ -81,22 +93,70 @@ func searcher(st *store.Store, emb *embed.Client) searchFunc {
 			return v[0], nil
 		}
 	}
-	return func(ctx context.Context, q string, k int) (store.Result, error) {
-		return st.Search(ctx, q, k, emb.Model, e)
-	}
+	return l
 }
 
-// routes takes its dependencies as functions so tests can stub them.
-func routes(pingDB func(context.Context) error, search searchFunc) http.Handler {
+func (l live) Ping(ctx context.Context) error { return l.st.Pool.Ping(ctx) }
+func (l live) Search(ctx context.Context, q string, k int) (store.Result, error) {
+	return l.st.Search(ctx, q, k, l.model, l.embed)
+}
+func (l live) Cards(ctx context.Context, ids []string) ([]store.Card, error) {
+	return l.st.Cards(ctx, ids)
+}
+func (l live) Passage(ctx context.Context, id string, window int) ([]store.Hit, error) {
+	return l.st.Passage(ctx, id, window)
+}
+
+func routes(b backend) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), time.Second)
 		defer cancel()
 		db, code := "up", http.StatusOK
-		if err := pingDB(ctx); err != nil {
+		if err := b.Ping(ctx); err != nil {
 			db, code = "down", http.StatusServiceUnavailable
 		}
 		writeJSON(w, code, map[string]any{"ok": code == http.StatusOK, "db": db})
+	})
+	// cards for the paragraphs a reply cites, filled verbatim from the database
+	mux.HandleFunc("POST /v1/cards", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			IDs []string `json:"ids"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || len(req.IDs) == 0 || len(req.IDs) > 20 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "send {\"ids\": [\"sn56.11#en5\"]} (1 to 20)"})
+			return
+		}
+		cards, err := b.Cards(r.Context(), req.IDs)
+		if err != nil {
+			log.Printf("cards: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "cards failed"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"cards": cards})
+	})
+	// one paragraph and its neighbours: the get_passage tool
+	mux.HandleFunc("GET /v1/passages/{id}", func(w http.ResponseWriter, r *http.Request) {
+		window := 1
+		if v := r.URL.Query().Get("window"); v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 0 || n > 5 {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "window is 0 to 5"})
+				return
+			}
+			window = n
+		}
+		hits, err := b.Passage(r.Context(), r.PathValue("id"), window)
+		if err != nil {
+			log.Printf("passage: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "passage failed"})
+			return
+		}
+		if len(hits) == 0 {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "no such paragraph"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"passage": hits})
 	})
 	mux.HandleFunc("POST /v1/search", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
@@ -110,7 +170,7 @@ func routes(pingDB func(context.Context) error, search searchFunc) http.Handler 
 		if req.K <= 0 || req.K > 50 {
 			req.K = 8 // the number the model sees (PRD §8.5)
 		}
-		res, err := search(r.Context(), req.Query, req.K)
+		res, err := b.Search(r.Context(), req.Query, req.K)
 		if err != nil {
 			log.Printf("search: %v", err)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "search failed"})
@@ -252,7 +312,7 @@ func runSearch(ctx context.Context, args []string) error {
 	}
 	defer st.Close()
 	emb := embed.FromEnv()
-	res, err := searcher(st, emb)(ctx, query, *k)
+	res, err := newLive(st, emb).Search(ctx, query, *k)
 	if err != nil {
 		return err
 	}

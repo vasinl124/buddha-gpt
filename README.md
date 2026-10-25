@@ -2,7 +2,7 @@
 
 Talk with the Buddha in English, Thai or Pali. Every teaching he relies on appears under his reply as the real passage, in Pali, Thai and English, with its source. He never invents scripture.
 
-> **Status:** Phase 1: the texts load and search works from the command line. The design and the plan are in [docs/PRD.md](docs/PRD.md).
+> **Status:** Phase 2: an English chat where every citation opens a card with the real passage. The design and the plan are in [docs/PRD.md](docs/PRD.md).
 
 ![Every service and how it talks to the others](docs/services.svg)
 
@@ -31,6 +31,8 @@ To load the texts and search them:
 pnpm sync                          # about a minute the first time; embeddings need OPENROUTER_API_KEY
 pnpm search "four noble truths"
 ```
+
+Then ask a question on the page. Without `OPENROUTER_API_KEY`, a mock model answers by citing the top passages, so you can try the whole turn first, and search is keyword-only until the embeddings exist.
 
 The monorepo layout, commands and conventions are in [AGENTS.md](AGENTS.md).
 

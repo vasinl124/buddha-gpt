@@ -4,7 +4,7 @@ import type { AgentHealth, Status } from "@buddha-gpt/shared";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:7891";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7891";
 const VARIANT = { up: "default", down: "destructive", unknown: "outline" } as const;
 
 // Asks the agent for /healthz, which also reports the Go core and Postgres.

@@ -22,6 +22,52 @@ function fakeCore(db: "up" | "down", delayMs = 0) {
   });
 }
 
+test("a chat turn streams a cited reply and its cards (mock model, no key)", async () => {
+  delete process.env.OPENROUTER_API_KEY;
+  const hits = [
+    { id: "sn56.11#en4", sutta_id: "sn56.11", lang: "en", text: "Now this, monks, is the noble truth of stress.", score: 1 },
+    { id: "dhp1-20#en1", sutta_id: "dhp1-20", lang: "en", text: "Phenomena are preceded by the heart.", score: 0.9 },
+  ];
+  let askedFor: string[] = [];
+  const core = createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      res.setHeader("Content-Type", "application/json");
+      if (req.url === "/v1/search") return res.end(JSON.stringify({ hits }));
+      askedFor = JSON.parse(body).ids;
+      res.end(JSON.stringify({ cards: askedFor.map((id) => ({ id, sutta_id: id.split("#")[0], collection: "SN", texts: { en: "…" } })) }));
+    });
+  });
+  const agent = createServer(app);
+  const agentUrl = await listen(agent);
+  try {
+    process.env.RETRIEVAL_URL = await listen(core);
+    const res = await fetch(`${agentUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "What is suffering?" }] }] }),
+    });
+    assert.equal(res.status, 200);
+    const chunks = (await res.text())
+      .split("\n")
+      .filter((l) => l.startsWith("data: ") && l !== "data: [DONE]")
+      .map((l) => JSON.parse(l.slice(6)));
+    const text = chunks.filter((c) => c.type === "text-delta").map((c) => c.delta).join("");
+    assert.match(text, /\[\[cite:sn56\.11#en4\]\]/);
+    assert.match(text, /\[\[cite:dhp1-20#en1\]\]/);
+    assert.deepEqual(askedFor, ["sn56.11#en4", "dhp1-20#en1"]); // cards for exactly the cited passages
+    assert.equal(chunks.find((c) => c.type === "data-cards")?.data.length, 2);
+    assert.match(chunks.find((c) => c.type === "data-notice")?.data ?? "", /Mock model/);
+
+    const bad = await fetch(`${agentUrl}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    assert.equal(bad.status, 400);
+  } finally {
+    agent.close();
+    core.close();
+  }
+});
+
 test("healthz reports the core and its database", async () => {
   const agent = createServer(app);
   const healthyCore = fakeCore("up");
