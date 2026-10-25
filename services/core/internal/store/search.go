@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -31,9 +33,12 @@ type Result struct {
 type Embedder func(ctx context.Context, query string) ([]float32, error)
 
 const (
-	legLimit    = 50 // candidates from each leg before fusion
-	rrfK        = 60 // the usual Reciprocal Rank Fusion constant
-	maxPerSutta = 2  // so one long sutta can't fill every slot the model sees
+	// the embedding endpoint sometimes takes over 10 s, the agent's whole budget for a search;
+	// past this, the search goes on with its lexical leg alone
+	embedTimeout = 4 * time.Second
+	legLimit     = 50 // candidates from each leg before fusion
+	rrfK         = 60 // the usual Reciprocal Rank Fusion constant
+	maxPerSutta  = 2  // so one long sutta can't fill every slot the model sees
 )
 
 // perSutta keeps at most max hits from any one sutta, skips a sutta's repeated refrains (the same
@@ -54,8 +59,9 @@ func perSutta(hits []Hit, max, k int) []Hit {
 }
 
 // Search runs the vector and lexical legs and fuses them with RRF. embed may be nil (no embedding
-// model configured): the search is then lexical only. Suttas in exclude are left out of both legs
-// (the risk filter, PRD §6).
+// model configured): the search is then lexical only, as it is when embedding the query fails or
+// takes longer than embedTimeout. Suttas in exclude are left out of both legs (the risk filter,
+// PRD §6).
 func (s *Store) Search(ctx context.Context, query string, k int, model string, embed Embedder, exclude []string) (Result, error) {
 	exclude = append([]string{}, exclude...) // never nil: "not (x = any(null))" would drop every row
 	lex, err := s.lexical(ctx, text.Fold(query), legLimit, exclude)
@@ -64,11 +70,12 @@ func (s *Store) Search(ctx context.Context, query string, k int, model string, e
 	}
 	var vec []Hit
 	if embed != nil {
-		v, err := embed(ctx, query)
+		ectx, cancel := context.WithTimeout(ctx, embedTimeout)
+		v, err := embed(ectx, query)
+		cancel()
 		if err != nil {
-			return Result{}, fmt.Errorf("embed query: %w", err)
-		}
-		if vec, err = s.vector(ctx, model, v, legLimit, exclude); err != nil {
+			log.Printf("search: lexical only, embedding the query failed: %v", err)
+		} else if vec, err = s.vector(ctx, model, v, legLimit, exclude); err != nil {
 			return Result{}, fmt.Errorf("vector: %w", err)
 		}
 	}
