@@ -66,8 +66,11 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
   const lang: Lang = isThai(latest) ? "th" : "en";
   const modelMessages = await convertToModelMessages(history);
 
-  const g = await guard(modelMessages, latest);
-  const route: Route = crisisKeyword(latest) ? "crisis" : g.route;
+  // crisis words skip the guard, so the hotlines show without waiting for a model call
+  const g = crisisKeyword(latest)
+    ? ({ route: "crisis", decline_topic: null, search_query: latest, quote: "" } as const)
+    : await guard(modelMessages, latest);
+  const route: Route = g.route;
   // Risk stays on once any turn showed it (PRD §9): this route, an earlier reply's risk flag, or
   // crisis words anywhere in the history. Then search leaves out the risk suttas.
   const risk =
@@ -183,7 +186,11 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
   const stream = createUIMessageStream<BuddhaMessage>({
     async execute({ writer }) {
       const id = "reply";
-      const write = (delta: string) => writer.write({ type: "text-delta", id, delta });
+      let shown = 0;
+      const write = (delta: string) => {
+        shown += delta.trim().length;
+        writer.write({ type: "text-delta", id, delta });
+      };
       writer.write({ type: "start" });
       if (mock) writer.write({ type: "data-notice", data: "Mock model: add OPENROUTER_API_KEY for real answers." });
       if (route === "crisis") writer.write({ type: "data-crisis", data: crisis(lang) }); // first, so the numbers show at once
@@ -204,8 +211,9 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
         } catch (err) {
           if (route !== "crisis") throw err;
           console.error("chat (crisis):", err);
-          write(TEXT.crisis[lang]);
         }
+        if (route === "crisis" && !shown) write(TEXT.crisis[lang]); // failed or empty: never just the numbers
+
       }
       writer.write({ type: "text-end", id });
       if (risk) writer.write({ type: "data-risk", data: true });

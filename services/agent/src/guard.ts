@@ -35,12 +35,12 @@ export async function guard(messages: ModelMessage[], latest: string): Promise<G
   const recent = messages.slice(-TURNS);
   while (recent[0]?.role === "assistant") recent.shift(); // the call has to start with the user
   try {
+    // no reasoning: routing doesn't need it, and some providers refuse thinking with a forced schema
     const { output } = await generateText({
       model,
       instructions: PROMPT,
       messages: recent,
       output: Output.object({ schema: Guard }),
-      providerOptions: { openrouter: { reasoning: { effort: "low" } } },
       abortSignal: AbortSignal.timeout(15_000),
     });
     return output;
