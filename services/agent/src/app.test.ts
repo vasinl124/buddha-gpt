@@ -43,6 +43,10 @@ function fakeRetrieval() {
         const none = query === "peace comes from within";
         return res.end(JSON.stringify(none ? { hits: [], top_cosine: 0, top_lexical: 0 } : { hits, top_cosine: 0, top_lexical: 1 }));
       }
+      if (path.startsWith("/v1/suttas/")) {
+        const sutta = decodeURIComponent(path.split("/")[3]);
+        return res.end(JSON.stringify({ paragraphs: [{ id: `${sutta}#pi1`, sutta_id: sutta, lang: "pi", text: `Idaṃ kho pana, bhikkhave (${sutta}).`, score: 0 }] }));
+      }
       if (path.startsWith("/v1/passages/")) {
         const id = decodeURIComponent(path.slice("/v1/passages/".length));
         seen.passages.push(id);
@@ -59,14 +63,14 @@ function fakeRetrieval() {
 type Seen = ReturnType<typeof fakeRetrieval>["seen"];
 
 // Runs fn against a live agent (mock model, no key) and a fake core.
-async function withAgent(fn: (post: (messages: unknown[]) => Promise<Turn>, seen: Seen) => Promise<void>) {
+async function withAgent(fn: (post: (messages: unknown[], lang?: string) => Promise<Turn>, seen: Seen) => Promise<void>) {
   delete process.env.OPENROUTER_API_KEY;
   const core = fakeRetrieval();
   const agent = createServer(app);
   try {
     process.env.RETRIEVAL_URL = await listen(core.server);
     const url = await listen(agent);
-    await fn((messages) => post(url, messages), core.seen);
+    await fn((messages, lang) => post(url, messages, lang), core.seen);
   } finally {
     agent.close();
     core.server.close();
@@ -79,8 +83,8 @@ interface Turn {
   data: (type: string) => any;
 }
 
-async function post(url: string, messages: unknown[]): Promise<Turn> {
-  const res = await fetch(`${url}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });
+async function post(url: string, messages: unknown[], lang?: string): Promise<Turn> {
+  const res = await fetch(`${url}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, lang }) });
   const chunks = (await res.text())
     .split("\n")
     .filter((l) => l.startsWith("data: ") && l !== "data: [DONE]")
@@ -139,6 +143,22 @@ test("words the texts don't contain get the honest verdict first", () =>
     const turn = await post([user('Did the Buddha say "peace comes from within"?')]);
     assert.ok(turn.text.startsWith("The texts I can search don't contain those words. "), turn.text);
     assert.ok(seen.searches.some((s) => s.query === "peace comes from within"));
+  }));
+
+test("Pali mode quotes the canon verbatim: the model names passages, code writes them out", () =>
+  withAgent(async (post, seen) => {
+    const turn = await post([user("What is suffering?")], "pi");
+    assert.ok(turn.text.startsWith("Idaṃ kho pana, bhikkhave (sn56.11). [[cite:sn56.11#pi1]]"), turn.text);
+    assert.deepEqual(seen.cards, [["sn56.11#pi1", "dhp1-20#pi1"]]);
+    assert.equal(turn.data("data-pali"), true);
+  }));
+
+test("a Thai question gets a Thai reply; the switch can force English", () =>
+  withAgent(async (post) => {
+    const thai = await post([user("ทุกข์คืออะไร")]);
+    assert.match(thai.text, /นี่คือคำตอบจำลอง.*\[\[cite:sn56\.11#en4\]\]/);
+    const forced = await post([user("ทุกข์คืออะไร")], "en");
+    assert.match(forced.text, /^This is a mock reply/);
   }));
 
 test("bad requests: no user message, or a message over the length limit", () =>

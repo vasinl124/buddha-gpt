@@ -76,6 +76,7 @@ type backend interface {
 	Search(ctx context.Context, query string, k int, exclude []string) (store.Result, error)
 	Cards(ctx context.Context, ids []string) ([]store.Card, error)
 	Passage(ctx context.Context, id string, window int) ([]store.Hit, error)
+	Paragraphs(ctx context.Context, suttaID, lang string, limit int) ([]store.Hit, error)
 }
 
 type live struct {
@@ -107,6 +108,9 @@ func (l live) Cards(ctx context.Context, ids []string) ([]store.Card, error) {
 }
 func (l live) Passage(ctx context.Context, id string, window int) ([]store.Hit, error) {
 	return l.st.Passage(ctx, id, window)
+}
+func (l live) Paragraphs(ctx context.Context, suttaID, lang string, limit int) ([]store.Hit, error) {
+	return l.st.Paragraphs(ctx, suttaID, lang, limit)
 }
 
 func routes(b backend) http.Handler {
@@ -159,6 +163,25 @@ func routes(b backend) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"passage": hits})
+	})
+	// a sutta's paragraphs in one language, for Pali mode: ?lang=pi&limit=12
+	mux.HandleFunc("GET /v1/suttas/{id}/paragraphs", func(w http.ResponseWriter, r *http.Request) {
+		lang := r.URL.Query().Get("lang")
+		limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+		if r.URL.Query().Get("limit") == "" {
+			limit, err = 12, nil
+		}
+		if (lang != "pi" && lang != "th" && lang != "en") || err != nil || limit < 1 || limit > 50 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "lang is pi, th or en; limit is 1 to 50"})
+			return
+		}
+		hits, err := b.Paragraphs(r.Context(), r.PathValue("id"), lang, limit)
+		if err != nil {
+			log.Printf("paragraphs: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "paragraphs failed"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"paragraphs": hits})
 	})
 	mux.HandleFunc("POST /v1/search", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {

@@ -1,4 +1,4 @@
-import type { AgentHealth, Status } from "@buddha-gpt/shared";
+import type { AgentHealth, ReplyLang, Status } from "@buddha-gpt/shared";
 import cors from "cors";
 import express from "express";
 import { chat, type BuddhaMessage } from "./chat.ts";
@@ -13,7 +13,7 @@ app.use(cors({ origin: (process.env.CORS_ORIGINS || "http://localhost:5005").spl
 
 // One chat turn, streamed back as the AI SDK's UI message stream (SSE).
 app.post("/api/chat", express.json({ limit: "1mb" }), async (req, res) => {
-  const messages = (req.body as { messages?: BuddhaMessage[] })?.messages;
+  const { messages, lang } = (req.body ?? {}) as { messages?: BuddhaMessage[]; lang?: ReplyLang };
   if (!Array.isArray(messages) || !messages.some((m) => m.role === "user")) {
     res.status(400).json({ error: "send {messages: [...]} with at least one user message" });
     return;
@@ -23,7 +23,7 @@ app.post("/api/chat", express.json({ limit: "1mb" }), async (req, res) => {
     res.status(413).json({ error: `keep a message under ${MAX_CHARS} characters` });
     return;
   }
-  await chat(messages, res);
+  await chat(messages, res, lang && ["auto", "en", "th", "pi"].includes(lang) ? lang : "auto");
 });
 
 // Liveness, plus what the agent can reach: the Go core and, through it, Postgres.

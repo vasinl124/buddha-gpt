@@ -2,7 +2,7 @@
 // answers), every sentence passes the checks, and the cards are filled verbatim from the database.
 import { readFileSync } from "node:fs";
 import type { ServerResponse } from "node:http";
-import type { ChatData, Crisis } from "@buddha-gpt/shared";
+import type { ChatData, Crisis, ReplyLang } from "@buddha-gpt/shared";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -24,6 +24,7 @@ export type BuddhaMessage = UIMessage<never, ChatData>;
 type Lang = "en" | "th";
 
 const PROMPT = readFileSync(new URL("../../../prompts/buddha.md", import.meta.url), "utf8");
+const QUOTE = /\[\[quote:([^\]\s]+)\]\]/g; // Pali mode names a passage this way; code writes it out
 const HISTORY = 20; // the last 10 turns (PRD §9)
 const MAX_STEPS = 4; // the last one has no tools, so the model has to answer
 
@@ -60,10 +61,12 @@ const NOTE: Record<Route, string> = {
   answer: "Route: answer.",
 };
 
-export async function chat(messages: BuddhaMessage[], res: ServerResponse): Promise<void> {
+export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: ReplyLang = "auto"): Promise<void> {
   const history = untrusted(messages);
   const latest = textOf(history.findLast((m) => m.role === "user"));
-  const lang: Lang = isThai(latest) ? "th" : "en";
+  // the reply language: forced by the switch, or detected (PRD §5.1); Pali mode keeps the
+  // person's language for everything that isn't a quote
+  const lang: Lang = ask === "en" || ask === "th" ? ask : isThai(latest) ? "th" : "en";
   const modelMessages = await convertToModelMessages(history);
 
   // crisis words skip the guard, so the hotlines show without waiting for a model call
@@ -71,6 +74,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
     ? ({ route: "crisis", decline_topic: null, search_query: latest, quote: "" } as const)
     : await guard(modelMessages, latest);
   const route: Route = g.route;
+  const pali = ask === "pi" && route === "answer"; // crisis, decline and don't-know are never in Pali
   // Risk stays on once any turn showed it (PRD §9): this route, an earlier reply's risk flag, or
   // crisis words anywhere in the history. Then search leaves out the risk suttas.
   const risk =
@@ -99,6 +103,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
   let pinned = ""; // a card code shows even if it isn't cited: a decline's teaching, a quote's match
   let opening = ""; // a sentence code writes before the reply: the verdict on a quote
   let fixed = ""; // a reply code writes instead of the model's
+  const paliText = new Map<string, string>(); // Pali mode: what each quotable passage says, verbatim
   if (route === "decline") {
     const id = g.decline_topic ? policy.decline[g.decline_topic] : null;
     if (id) {
@@ -124,6 +129,17 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
         }
         note += ` The person attributed these words to the Buddha: "${escapeTags(g.quote)}". The app has already told them: "${opening}" Don't repeat it, and never claim you said those words.`;
       }
+      if (pali && !fixed) {
+        // the Pali of the suttas search found: the model picks from it by ID, code writes it out
+        const suttas = [...new Set(passages.map((h) => h.sutta_id))].slice(0, 3);
+        const pi = (await Promise.all(suttas.map((s) => core.paragraphs(s, "pi", 12)))).flat();
+        for (const p of pi) paliText.set(p.id, p.text);
+        passages = [...passages.slice(0, 4), ...pi];
+        if (!pi.length) fixed = TEXT.dontKnow[lang];
+        note +=
+          " Pali mode: reply with only the IDs of the one to three Pali passages (IDs with #pi) that best answer," +
+          " each written as [[quote:ID]], and nothing else. The app writes out their words.";
+      }
     } catch (err) {
       console.error("search:", err);
       fixed = TEXT.cantRecall[lang];
@@ -144,7 +160,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
     }),
   };
 
-  const { model, mock } = chatModel(() => order);
+  const { model, mock } = chatModel(() => (pali ? order.filter((id) => paliText.has(id)) : order), pali);
   const nonce = crypto.randomUUID().slice(0, 8);
   const turn = (extra: string) =>
     [
@@ -158,6 +174,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
   async function attempt(write: (delta: string) => void, extra = "") {
     const gate = new SentenceGate(known, {
       requireCite: route === "answer",
+      lang,
       blocked: blocked.length ? new RegExp(blocked.join("|")) : undefined,
     });
     const result = streamText({
@@ -183,6 +200,21 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
     return end;
   }
 
+  // Pali mode (PRD §5.1): the model names up to three passages; code writes out their words.
+  async function quote(write: (delta: string) => void): Promise<string[]> {
+    const result = streamText({
+      model,
+      instructions: PROMPT,
+      messages: withTurn(modelMessages, turn("")),
+      providerOptions: { openrouter: { reasoning: { effort: "low" } } },
+    });
+    const named = [...(await result.text).matchAll(QUOTE)].map((m) => m[1]);
+    const ids = [...new Set(named)].filter((id) => paliText.has(id)).slice(0, 3);
+    if (!ids.length) write(TEXT.dontKnow[lang]);
+    for (const id of ids) write(`${paliText.get(id)} [[cite:${id}]]\n\n`);
+    return ids;
+  }
+
   const stream = createUIMessageStream<BuddhaMessage>({
     async execute({ writer }) {
       const id = "reply";
@@ -199,6 +231,8 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
       let cited: string[] = [];
       if (fixed) {
         if (!opening) write(fixed);
+      } else if (pali) {
+        cited = await quote(write);
       } else {
         try {
           let end = await attempt(write);
@@ -213,10 +247,10 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
           console.error("chat (crisis):", err);
         }
         if (route === "crisis" && !shown) write(TEXT.crisis[lang]); // failed or empty: never just the numbers
-
       }
       writer.write({ type: "text-end", id });
       if (risk) writer.write({ type: "data-risk", data: true });
+      if (pali && cited.length) writer.write({ type: "data-pali", data: true });
       // cited cards first, in the order of the reply's numbered chips; then a pinned one if uncited
       const ids = [...new Set([...cited, ...(pinned ? [pinned] : [])])];
       const cards = await core.cards(ids).catch((err) => {

@@ -37,6 +37,11 @@ export async function passage(id: string, window = 1): Promise<Passage[]> {
   return (await call<{ passage: Passage[] }>(`/v1/passages/${encodeURIComponent(id)}?window=${window}`)).passage;
 }
 
+/** A sutta's paragraphs in one language, in order: the Pali that Pali mode can quote. */
+export async function paragraphs(suttaId: string, lang: string, limit = 12): Promise<Passage[]> {
+  return (await call<{ paragraphs: Passage[] }>(`/v1/suttas/${encodeURIComponent(suttaId)}/paragraphs?lang=${lang}&limit=${limit}`)).paragraphs;
+}
+
 export async function cards(ids: string[]): Promise<Card[]> {
   if (ids.length === 0) return [];
   return (await call<{ cards: Card[] }>("/v1/cards", { method: "POST", body: JSON.stringify({ ids }) })).cards;

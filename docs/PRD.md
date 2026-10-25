@@ -114,7 +114,7 @@ Precedence: crisis > decline > redirect > chat > don't know > answer.
 | 1 | Browser → Web app | HTTP | 5005 | the user | Pages and JavaScript |
 | 2 | Browser → Agent | HTTP POST `/api/chat`, reply streamed back as SSE | 7891 | the user | In: the messages (history comes from the browser) and the language switch. Out: the reply, sentence by sentence, then the cards |
 | 3 | Agent → OpenRouter | HTTPS, OpenAI-compatible, streamed | 443 | the user | The guard call, then the reply call with tools |
-| 4 | Agent → Retrieval API | HTTP/JSON: `POST /v1/search`, `GET /v1/passages/{id}`, `POST /v1/cards` | 7890 | the user | A query and filters in; passages with IDs out. Then the cited IDs in; the cards out, verbatim from the database |
+| 4 | Agent → Retrieval API | HTTP/JSON: `POST /v1/search`, `GET /v1/passages/{id}`, `GET /v1/suttas/{id}/paragraphs`, `POST /v1/cards` | 7890 | the user | A query and filters in; passages with IDs out (in Pali mode, the top suttas' Pali too). Then the cited IDs in; the cards out, verbatim from the database |
 | 5 | Retrieval API → Postgres | SQL (pgx) | 5432 | the user | Hybrid search: pgvector plus trigrams |
 | 6 | Retrieval API → OpenRouter | HTTPS | 443 | the user | Embeds the query (`baai/bge-m3`) |
 | 7 | `buddha sync` → Sources | git clone and HTTPS downloads | 443 | nobody (batch) | VRI XML; Thai PDFs, 5 seconds apart as the site's robots.txt asks; Ṭhānissaro's sutta pages, 4 at a time; public-domain scans |
@@ -221,7 +221,7 @@ buddha-gpt/
 | Thai | Royal translation (ฉบับหลวง), 45 volumes, from thepathofpurity.com | No rights statement ⚠. First printed in 1957; this set is the Department of Religious Affairs' 1971 printing | Text PDFs, one per volume | All Thai |
 | English | Ṭhānissaro Bhikkhu, dhammatalks.org | CC BY-NC 4.0: free for non-commercial use, with credit. His site counts any sale as commercial | One page per sutta (about 1,100), downloaded 4 at a time; robots.txt allows `/suttas/` | English wherever he translated the sutta |
 | English | Public-domain translations, original printings: Rhys Davids, *Dialogues of the Buddha* (DN, 1899–1921); Chalmers, *Further Dialogues of the Buddha* (MN, 1926–27); *The Book of the Kindred Sayings* (SN, 1917–30) | Public domain: published in 1930 or earlier | archive.org scans with OCR text | English for the suttas Ṭhānissaro skipped |
-| — | `sc-data`, SuttaCentral's copy of the Thai, keyed by sutta ID | No licence ⚠ | git clone | Crosswalk only (§8.3); never indexed or shown |
+| — | `sc-data`, SuttaCentral's copy of the Thai, keyed by sutta ID | No licence ⚠ | A shallow, sparse git checkout of its Thai sutta folders at a pinned commit | Crosswalk only (§8.3): its opening words find where each sutta starts; never indexed or shown |
 | — | SuttaCentral, 84000.org | — | Links | "Read the whole sutta" links; no text is fetched |
 
 - **One English per sutta:** Ṭhānissaro if he translated it, otherwise the public-domain translation, otherwise a SuttaCentral link. The old Aṅguttara translation (1932–36) isn't public domain in the US until 2028–32, so Aṅguttara gaps use links.
@@ -247,9 +247,8 @@ buddha-gpt/
 - Everything joins on SuttaCentral-style sutta IDs (`mn10`). They are standard references, not text.
 - **The crosswalk.** VRI and SuttaCentral group the repetitive (peyyāla) suttas differently in a few saṃyuttas and nipātas, and AN 1–2 number their suttas as paragraphs. A vendored list of SuttaCentral's sutta IDs (the file names in `bilara-data`, no text) maps each paragraph to the SuttaCentral sutta whose range holds its number, so every ID links to a real page. On the Pali side 3,398 of 3,399 IDs match; the one left over (`sn45.181`) is reported by `buddha sync`.
 - Pali and English join by sutta heading. The Thai is organised by volume and ข้อ, so `buddha sync` builds a crosswalk into `suttas`:
-  - DN and MN: by counting sutta headings in canonical order (volume 12 holds MN 1–50);
-  - SN and AN: by matching against sc-data's ID-keyed copy of the same translation;
-  - Dhammapada by verse number, Sutta Nipāta by sutta heading.
+  - DN, MN, SN and AN: each sutta starts where its opening words, from sc-data's ID-keyed copy of the same translation, are found in the volume. Openings found exactly once are anchors (the longest run in order is kept); the rest are searched for between them, and a short or repeated opening must be the only match. A sutta whose opening isn't found is left out with the one before it, whose end is then unknown: better no Thai than Thai under the wrong sutta. This places 3,157 of 3,233 suttas;
+  - the Dhammapada and Sutta Nipāta aren't in sc-data's Thai, so they need their own crosswalk (verse numbers, sutta headings) later.
 - **Paragraphs:** when a sutta has the same number of paragraphs in two languages, they align in order. Otherwise the card shows the cited paragraph and links to the whole sutta in the other languages.
 - **Spike for later:** thepathofpurity also hosts the Siam Rath Pali that the Thai was translated from, in the same 45 volumes. If its ข้อ numbers match the Thai, Thai↔Pali paragraph alignment becomes a database join.
 

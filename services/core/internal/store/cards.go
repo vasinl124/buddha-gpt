@@ -102,3 +102,15 @@ func (s *Store) Passage(ctx context.Context, id string, window int) ([]Hit, erro
 	}
 	return pgx.CollectRows(rows, pgx.RowToStructByPos[Hit])
 }
+
+// Paragraphs returns up to limit of a sutta's paragraphs in one language, in order, each with its
+// parts joined under its first part's ID: the Pali that Pali mode can quote (PRD §5.1).
+func (s *Store) Paragraphs(ctx context.Context, suttaID, lang string, limit int) ([]Hit, error) {
+	rows, err := s.Pool.Query(ctx, `select (array_agg(id order by part))[1], sutta_id, lang,
+		string_agg(text, ' ' order by part), 0::float8
+		from paras where sutta_id = $1 and lang = $2 group by sutta_id, lang, ord order by ord limit $3`, suttaID, lang, limit)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowToStructByPos[Hit])
+}

@@ -13,21 +13,31 @@ export function guardModel(): LanguageModel | null {
   return apiKey ? createOpenRouter({ apiKey })(modelId(), { provider: { require_parameters: true } }) : null;
 }
 
-export function chatModel(topIds: () => string[]): { model: LanguageModel; mock: boolean } {
+/** quote: Pali mode, where the reply names passages as [[quote:ID]] instead of citing them. */
+export function chatModel(topIds: () => string[], quote = false): { model: LanguageModel; mock: boolean } {
   const model = guardModel();
-  return model ? { model, mock: false } : { model: mockModel(topIds), mock: true };
+  return model ? { model, mock: false } : { model: mockModel(topIds, quote), mock: true };
 }
 
-// The mock replies with fixed sentences that cite the first two passages retrieved this turn.
-function mockModel(topIds: () => string[]): LanguageModel {
+// The mock replies with fixed sentences, in the language the turn asks for, that cite (or in Pali
+// mode quote) the first two passages retrieved this turn.
+function mockModel(topIds: () => string[], quote: boolean): LanguageModel {
   return new MockLanguageModelV4({
-    doStream: async () => {
+    doStream: async ({ prompt }) => {
       const [a, b] = topIds();
-      const text = a
-        ? `This is a mock reply: add OPENROUTER_API_KEY to .env for a real one. ` +
-          `The passages below are the ones your question found. [[cite:${a}]]` +
-          (b ? ` Read this one too. [[cite:${b}]]` : "")
-        : "This is a mock reply, and no passage matched your question.";
+      const thai = JSON.stringify(prompt).includes("Reply in Thai.");
+      const text = quote
+        ? [a, b].filter(Boolean).map((id) => `[[quote:${id}]]`).join(" ")
+        : !a
+          ? thai
+            ? "นี่คือคำตอบจำลอง และไม่พบข้อความที่ตรงกับคำถามของท่าน"
+            : "This is a mock reply, and no passage matched your question."
+          : thai
+            ? `นี่คือคำตอบจำลอง เพิ่ม OPENROUTER_API_KEY ในไฟล์ .env เพื่อคำตอบจริง ข้อความด้านล่างคือข้อความที่คำถามของท่านค้นพบ [[cite:${a}]]` +
+              (b ? ` และข้อความนี้ด้วย [[cite:${b}]]` : "")
+            : `This is a mock reply: add OPENROUTER_API_KEY to .env for a real one. ` +
+              `The passages below are the ones your question found. [[cite:${a}]]` +
+              (b ? ` Read this one too. [[cite:${b}]]` : "");
       return {
         stream: simulateReadableStream({
           chunks: [

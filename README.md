@@ -2,13 +2,13 @@
 
 Talk with the Buddha in English, Thai or Pali. Every teaching he relies on appears under his reply as the real passage, in Pali, Thai and English, with its source. He never invents scripture.
 
-> **Status:** Phase 3: an English chat where every citation opens a card with the real passage, with guardrails: a crisis message gets hotline numbers, a lottery request gets a kind no, and a made-up quote gets an honest answer. The design and the plan are in [docs/PRD.md](docs/PRD.md).
+> **Status:** Phase 4: a chat in English or Thai, or in Pali mode, where every citation opens a card with the real passage in Pali, Thai and English, with guardrails: a crisis message gets hotline numbers, a lottery request gets a kind no, and a made-up quote gets an honest answer. The design and the plan are in [docs/PRD.md](docs/PRD.md).
 
 ![Every service and how it talks to the others](docs/services.svg)
 
 ## Run it locally
 
-You need Node 22+, pnpm 10, Go 1.26 and Docker.
+You need Node 22+, pnpm 10, Go 1.26 and Docker, plus git and poppler's `pdftotext` for `pnpm sync` (`brew install poppler`).
 
 ```bash
 pnpm install
@@ -38,7 +38,7 @@ The monorepo layout, commands and conventions are in [AGENTS.md](AGENTS.md).
 
 ## Texts and licences
 
-The source texts aren't in this repo. `pnpm sync` (Phase 1) downloads them:
+The source texts aren't in this repo. `pnpm sync` downloads them:
 
 - **Pali:** VRI's Chaṭṭha Saṅgāyana edition, free for non-commercial use with credit.
 - **Thai:** the Royal translation (ฉบับหลวง), which carries no rights statement.

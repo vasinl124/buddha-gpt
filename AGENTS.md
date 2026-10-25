@@ -38,7 +38,7 @@ docker compose up -d db   # Postgres + pgvector
 pnpm dev                  # Go core + agent + web, through concurrently
 pnpm dev:core             # or dev:agent, dev:web: one service
 pnpm lint                 # ESLint, type checks, go vet
-pnpm test                 # TypeScript tests, then go test
+pnpm test                 # TypeScript tests (agent, web), then go test
 pnpm sync                 # download, parse, load and embed the texts
 pnpm search "anatta"      # the top passages for a query (hybrid, or lexical without a key)
 pnpm eval                 # run the eval suite (Phase 5)
