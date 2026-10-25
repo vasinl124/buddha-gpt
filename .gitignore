@@ -1,0 +1,7 @@
+# private drafts (the v0.1 PRD and its diagrams), kept out of the public repo
+docs/archive/
+# downloaded source texts are never committed; `buddha sync` fetches them
+data/
+# local Claude Code state
+.claude/settings.local.json
+.claude/worktrees/
