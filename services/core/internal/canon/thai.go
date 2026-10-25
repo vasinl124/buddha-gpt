@@ -44,11 +44,14 @@ var thaiPUA = map[rune]rune{
 }
 
 // ThaiGlyphs maps private-use glyphs (U+F700–U+F71A) back to standard Thai and rejoins a sara am
-// that came out as nikhahit + sara aa (ํา → ำ).
+// that came out as nikhahit + sara aa (ํา → ำ). Any other private-use glyph is dropped (PRD §8.2).
 func ThaiGlyphs(s string) string {
 	s = strings.Map(func(r rune) rune {
 		if t, ok := thaiPUA[r]; ok {
 			return t
+		}
+		if r >= 0xE000 && r <= 0xF8FF {
+			return -1
 		}
 		return r
 	}, s)
@@ -304,8 +307,13 @@ func ParseThai(text string, refs []ThaiRef) ([]Sutta, []Para, []string) {
 			cur = append(cur, text)
 		}
 		texts = append(texts, clean(strings.Join(cur, " ")))
-		for k, t := range texts {
-			out = append(out, paras(r.ID, "th", "royal", k+1, t)...)
+		ord := 0
+		for _, t := range texts {
+			if thaiFold(t) == "" { // a ข้อ with no words: "…", "ฯ"
+				continue
+			}
+			ord++
+			out = append(out, paras(r.ID, "th", "royal", ord, t)...)
 		}
 		suttas = append(suttas, Sutta{ID: r.ID, Collection: collectionOf(r.ID)})
 	}
