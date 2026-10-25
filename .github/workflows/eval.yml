@@ -18,6 +18,9 @@ permissions:
 jobs:
   eval:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash # bash -eo pipefail, so `buddha eval | tee` fails when the eval does
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       EVAL_DB_URL: ${{ secrets.EVAL_DB_URL }}
