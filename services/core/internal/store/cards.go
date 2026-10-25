@@ -104,11 +104,24 @@ func (s *Store) Passage(ctx context.Context, id string, window int) ([]Hit, erro
 }
 
 // Paragraphs returns up to limit of a sutta's paragraphs in one language, in order, each with its
-// parts joined under its first part's ID: the Pali that Pali mode can quote (PRD §5.1).
-func (s *Store) Paragraphs(ctx context.Context, suttaID, lang string, limit int) ([]Hit, error) {
+// parts joined under its first part's ID: the Pali that Pali mode can quote (PRD §5.1). With near,
+// a paragraph of the same sutta in any language, the window is centred where that paragraph falls,
+// in proportion to each language's length, so the relevant part of a long sutta is in it.
+func (s *Store) Paragraphs(ctx context.Context, suttaID, lang, near string, limit int) ([]Hit, error) {
+	center := 0
+	if near != "" {
+		err := s.Pool.QueryRow(ctx, `select coalesce(round(n.ord::numeric
+			* (select max(x.ord) from paras x where x.sutta_id = n.sutta_id and x.lang = $2)
+			/ nullif((select max(x.ord) from paras x where x.sutta_id = n.sutta_id and x.lang = n.lang), 0)), 0)::int
+			from paras n where n.id = $1 and n.sutta_id = $3`, near, lang, suttaID).Scan(&center)
+		if err != nil && err != pgx.ErrNoRows {
+			return nil, err
+		}
+	}
 	rows, err := s.Pool.Query(ctx, `select (array_agg(id order by part))[1], sutta_id, lang,
 		string_agg(text, ' ' order by part), 0::float8
-		from paras where sutta_id = $1 and lang = $2 group by sutta_id, lang, ord order by ord limit $3`, suttaID, lang, limit)
+		from paras where sutta_id = $1 and lang = $2 and ord >= $4
+		group by sutta_id, lang, ord order by ord limit $3`, suttaID, lang, limit, max(center-limit/2, 0))
 	if err != nil {
 		return nil, err
 	}

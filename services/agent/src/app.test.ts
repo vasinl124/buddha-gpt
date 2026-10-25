@@ -30,7 +30,7 @@ const hits = [
 // A stand-in for the Go core's /v1 routes that records what the agent asked for. Search finds
 // nothing for "peace comes from within" alone, the fake quote.
 function fakeRetrieval() {
-  const seen = { searches: [] as { query: string; exclude: string[] }[], passages: [] as string[], cards: [] as string[][] };
+  const seen = { searches: [] as { query: string; exclude: string[] }[], passages: [] as string[], cards: [] as string[][], near: [] as string[] };
   const server = createServer((req, res) => {
     let body = "";
     req.on("data", (c) => (body += c));
@@ -45,6 +45,7 @@ function fakeRetrieval() {
       }
       if (path.startsWith("/v1/suttas/")) {
         const sutta = decodeURIComponent(path.split("/")[3]);
+        seen.near.push(new URL(req.url ?? "", "http://core").searchParams.get("near") ?? "");
         return res.end(JSON.stringify({ paragraphs: [{ id: `${sutta}#pi1`, sutta_id: sutta, lang: "pi", text: `Idaṃ kho pana, bhikkhave (${sutta}).`, score: 0 }] }));
       }
       if (path.startsWith("/v1/passages/")) {
@@ -150,6 +151,7 @@ test("Pali mode quotes the canon verbatim: the model names passages, code writes
     const turn = await post([user("What is suffering?")], "pi");
     assert.ok(turn.text.startsWith("Idaṃ kho pana, bhikkhave (sn56.11). [[cite:sn56.11#pi1]]"), turn.text);
     assert.deepEqual(seen.cards, [["sn56.11#pi1", "dhp1-20#pi1"]]);
+    assert.deepEqual(seen.near, ["sn56.11#en4", "dhp1-20#en1"]); // each sutta's Pali around its best hit
     assert.equal(turn.data("data-pali"), true);
   }));
 
@@ -160,6 +162,37 @@ test("a Thai question gets a Thai reply; the switch can force English", () =>
     const forced = await post([user("ทุกข์คืออะไร")], "en");
     assert.match(forced.text, /^This is a mock reply/);
   }));
+
+test("eval mode answers in JSON with a debug block, and only when EVAL_MODE is on", async () => {
+  delete process.env.OPENROUTER_API_KEY;
+  const core = fakeRetrieval();
+  const agent = createServer(app);
+  try {
+    process.env.RETRIEVAL_URL = await listen(core.server);
+    const url = await listen(agent);
+    const ask = () =>
+      fetch(`${url}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [user("What is suffering?")], eval: true }),
+      });
+    delete process.env.EVAL_MODE;
+    assert.equal((await ask()).status, 403);
+    process.env.EVAL_MODE = "1";
+    const r = (await (await ask()).json()) as any;
+    assert.match(r.reply, /\[\[cite:sn56\.11#en4\]\]/);
+    assert.equal(r.debug.route, "answer");
+    assert.deepEqual(r.debug.searched, ["sn56.11#en4", "dhp1-20#en1"]);
+    assert.deepEqual(r.debug.cited, ["sn56.11#en4", "dhp1-20#en1"]);
+    assert.ok(r.debug.cited.every((id: string) => r.debug.retrieved.includes(id)));
+    assert.equal(r.cards.length, 2);
+    assert.equal(r.debug.mock, true);
+  } finally {
+    delete process.env.EVAL_MODE;
+    agent.close();
+    core.server.close();
+  }
+});
 
 test("bad requests: no user message, or a message over the length limit", () =>
   withAgent(async (post) => {

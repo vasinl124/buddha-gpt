@@ -60,8 +60,8 @@ func (f *fake) Passage(_ context.Context, id string, window int) ([]store.Hit, e
 	return []store.Hit{{ID: id}}, nil
 }
 
-func (f *fake) Paragraphs(_ context.Context, suttaID, lang string, limit int) ([]store.Hit, error) {
-	f.passage, f.window = suttaID+"/"+lang, limit
+func (f *fake) Paragraphs(_ context.Context, suttaID, lang, near string, limit int) ([]store.Hit, error) {
+	f.passage, f.window = suttaID+"/"+lang+"/"+near, limit
 	return []store.Hit{{ID: suttaID + "#" + lang + "1", SuttaID: suttaID, Lang: lang}}, nil
 }
 
@@ -79,8 +79,8 @@ func TestRoutes(t *testing.T) {
 		f.query != "four noble truths" || f.k != 8 || !strings.Contains(rec.Body.String(), `"sutta_id":"sn56.11"`) {
 		t.Errorf("search: %d %s (query %q, k %d)", rec.Code, rec.Body, f.query, f.k)
 	}
-	if rec := call(h, "GET", "/v1/suttas/sn56.11/paragraphs?lang=pi", ""); rec.Code != http.StatusOK ||
-		f.passage != "sn56.11/pi" || f.window != 12 || !strings.Contains(rec.Body.String(), `"id":"sn56.11#pi1"`) {
+	if rec := call(h, "GET", "/v1/suttas/sn56.11/paragraphs?lang=pi&near=sn56.11%23en5", ""); rec.Code != http.StatusOK ||
+		f.passage != "sn56.11/pi/sn56.11#en5" || f.window != 12 || !strings.Contains(rec.Body.String(), `"id":"sn56.11#pi1"`) {
 		t.Errorf("paragraphs: %d %s (%s, limit %d)", rec.Code, rec.Body, f.passage, f.window)
 	}
 	for _, bad := range []string{"?lang=xx", "?lang=pi&limit=0", "?lang=pi&limit=x"} {
