@@ -81,10 +81,17 @@ async function demo() {
   });
   await page.evaluate(() => document.body.append(Object.assign(document.createElement("div"), { id: "demo-caption" })));
   await page.waitForTimeout(1200);
+  const chat = page.locator("[role=log] > div").first(); // the chat's scrolling element
   for (const scene of SCENES) {
     await page.locator("#demo-caption").evaluate((el, text) => (el.textContent = text), scene.caption);
+    // back to the bottom with the (hidden) scroll-down button, so the chat follows the next reply
+    await page.locator("[role=log] button.rounded-full.absolute").evaluateAll((buttons) => buttons.forEach((b) => b.click()));
     await ask(page, scene.text, scene.lang, 40);
-    await page.waitForTimeout(2500); // time to read
+    // a fast reply and its cards scroll past at once: a wheel turn up stops the chat following its
+    // bottom, as it would for a person, and the question goes back to the top to read the reply
+    await chat.dispatchEvent("wheel", { deltaY: -1 });
+    await page.locator(".is-user").last().evaluate((el) => el.scrollIntoView({ block: "start", behavior: "smooth" }));
+    await page.waitForTimeout(4000); // time to read
     if (scene.thaiScript) {
       await page.getByRole("button", { name: "Show Pali in Thai script" }).click();
       await page.waitForTimeout(2500);

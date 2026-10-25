@@ -8,7 +8,7 @@ Talk with the Buddha in English, Thai or Pali. Every teaching he relies on appea
 
 | An answer cites its passages, here in Pali, Thai and English | Ask in Thai, and he answers in Thai |
 |---|---|
-| ![An answer about the four noble truths with numbered source cards](docs/media/answer.png) | ![A Thai question answered in Thai, citing SN 56.11 and DN 22](docs/media/thai.png) |
+| ![An answer about the four noble truths with numbered source cards](docs/media/answer.png) | ![A Thai question answered in Thai, citing SN 56.27, SN 56.11 and DN 16](docs/media/thai.png) |
 | **Pāli mode answers in the canon's own words, here in Thai script** | **A popular quote, checked: a similar teaching, in different words** |
 | ![Pāli mode: the reply is the canon's own Pali, shown in Thai script](docs/media/pali.png) | ![Asked whether the Buddha said a popular quote, the app checks the texts and says what they hold](docs/media/quote.png) |
 | **Lottery numbers get a kind no, with a teaching** | **A crisis message gets the right numbers at once** |
