@@ -339,7 +339,7 @@ func embedMissing(ctx context.Context, st *store.Store, emb *embed.Client) error
 		log.Print("no OPENROUTER_API_KEY: skipping embeddings, so search stays lexical until you add one")
 		return nil
 	}
-	langs := []string{"en"}
+	langs := []string{"en", "th"} // one multilingual space (PRD §8.4); Pali is searched by its words only
 	done := 0
 	for {
 		batch, err := st.MissingVectors(ctx, emb.Model, langs, 64)
