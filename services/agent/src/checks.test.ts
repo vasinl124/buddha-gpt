@@ -116,6 +116,15 @@ test("a Thai quote with spaces in it is checked whole, and its whole sentence is
   assert.match(g.dropped[0], /^เราเคยกล่าวว่า/); // the whole claim, so no clause is left hanging
 });
 
+test("a sentence never ends inside a quote, so a two-sentence quote is checked whole", () => {
+  assert.equal(sentenceEnd('“Be thus. Not thus.” Next'), "“Be thus. Not thus.” ".length);
+  const g = new SentenceGate(known(), { requireCite: false });
+  // SN 22.59 has "Let this form be thus. Let this form not be thus.", not these words
+  const shown = [...g.push('He said, "Let my body be thus. Let my body not be thus." Reflect on it. '), ...g.end().released];
+  assert.deepEqual(shown, ["Reflect on it. "]);
+  assert.equal(g.dropped.length, 1);
+});
+
 test("a short quoted word doesn't pair with the next quote", () => {
   const g = new SentenceGate(known(), { requireCite: false });
   const s = 'Do not call the body "self", for it is neither lasting nor your own, nor call it "mine". ';

@@ -55,13 +55,16 @@ const END = /[.?!…]["”’')\]]*(?:\s*\[\[cite:[^\]\s]+\]\])*(\s+)(?=[^\s[])/
 // citation markers or at a line break, so a quote is never cut in two and a dropped sentence is
 // a whole claim, never half of one.
 const THAI_END = /\]\](\s+)(?=[^\s[])|\n/;
+// An odd number of double quote marks so far: a quote is open. A sentence never ends inside one,
+// so a quote of two sentences ("Let this form be thus. Let this form not be thus.") is checked whole.
+const insideQuote = (s: string) => (s.match(/["“”]/g)?.length ?? 0) % 2 === 1;
 
 /** Where the first complete sentence in buf ends (after its trailing space), or -1. */
 export function sentenceEnd(buf: string): number {
   END.lastIndex = 0;
   for (let m = END.exec(buf); m; m = END.exec(buf)) {
-    const before = buf.slice(0, m.index + 1);
-    if (!ABBREV.test(before)) return m.index + m[0].length;
+    const end = m.index + m[0].length;
+    if (!ABBREV.test(buf.slice(0, m.index + 1)) && !insideQuote(buf.slice(0, end))) return end;
   }
   const para = buf.indexOf("\n\n");
   if (para >= 0) return para + 2;
