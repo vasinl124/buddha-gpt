@@ -1,0 +1,72 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { SentenceGate, fold, isThai, sentenceEnd } from "./checks.ts";
+
+const known = () =>
+  new Map([
+    ["sn56.11#en4", fold("“Now this, monks, is the noble truth of stress: Birth is stressful, aging is stressful.”")],
+    ["sn22.59#en3", fold("“Consciousness is not self.”")],
+  ]);
+
+test("holds the answer until its first valid citation, then releases it all", () => {
+  const g = new SentenceGate(known());
+  assert.deepEqual(g.push("Friend, you ask about suffering. "), []);
+  assert.deepEqual(g.push("Birth is stressful. [[cite:sn56.11#en4]] What do you"), [
+    "Friend, you ask about suffering. ",
+    "Birth is stressful. [[cite:sn56.11#en4]] ",
+  ]);
+  const end = g.end();
+  assert.deepEqual(end.released, ["What do you"]);
+  assert.deepEqual(end.cited, ["sn56.11#en4"]);
+  assert.equal(end.grounded, true);
+});
+
+test("strips citations to passages that weren't retrieved", () => {
+  const g = new SentenceGate(known());
+  const out = g.push("Consciousness is not self. [[cite:sn22.59#en3]] [[cite:mn999#en1]] And so it is. ");
+  assert.deepEqual(out, ["Consciousness is not self. [[cite:sn22.59#en3]]  "]);
+  // the last sentence waits: a citation marker could still follow it
+  assert.deepEqual(g.end().released, ["And so it is. "]);
+  assert.deepEqual(g.strippedIds, ["mn999#en1"]);
+});
+
+test("drops a sentence that quotes words no passage contains, keeps an exact quote", () => {
+  const g = new SentenceGate(known());
+  const out = g.push(
+    'I taught that "birth is stressful, aging is stressful." [[cite:sn56.11#en4]] ' +
+      'I also said "peace comes from within, do not seek it without." [[cite:sn56.11#en4]] Reflect on it. ',
+  );
+  assert.equal(out.length, 1);
+  assert.match(out[0], /birth is stressful/);
+  assert.deepEqual(g.end().released, ["Reflect on it. "]);
+  assert.equal(g.dropped.length, 1);
+  assert.match(g.dropped[0], /peace comes from within/);
+});
+
+test("an uncited reply is never released", () => {
+  const g = new SentenceGate(known());
+  assert.deepEqual(g.push("All things change. "), []);
+  const end = g.end();
+  assert.equal(end.grounded, false);
+  assert.deepEqual(end.released, []);
+  assert.equal(g.heldText(), "All things change. ");
+});
+
+test("drops an uncited preamble before a tool call, and keeps steps apart", () => {
+  const g = new SentenceGate(known());
+  assert.deepEqual(g.push("Let me look into that."), []);
+  assert.deepEqual(g.endStep(true), []);
+  assert.deepEqual(g.push("Birth is stressful. [[cite:sn56.11#en4]] Reflect."), ["Birth is stressful. [[cite:sn56.11#en4]] "]);
+  assert.deepEqual(g.end().released, ["Reflect."]);
+});
+
+test("sentence boundaries", () => {
+  assert.equal(sentenceEnd("Then Ven. Ānanda went. Next"), "Then Ven. Ānanda went. ".length);
+  assert.equal(sentenceEnd("No end yet"), -1);
+  assert.equal(sentenceEnd("Done. [[cite:a#en1]] Next"), "Done. [[cite:a#en1]] ".length);
+});
+
+test("isThai", () => {
+  assert.equal(isThai("ทุกข์คืออะไร"), true);
+  assert.equal(isThai("What is dukkha?"), false);
+});

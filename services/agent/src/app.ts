@@ -1,17 +1,28 @@
 import type { AgentHealth, Status } from "@buddha-gpt/shared";
 import cors from "cors";
 import express from "express";
+import { chat, type BuddhaMessage } from "./chat.ts";
 
 // Longer than the core's 1 s database probe, so a slow database shows as db "down", not core "down".
 const CORE_TIMEOUT_MS = 2000;
 
 export const app = express();
 
-app.use(cors({ origin: (process.env.CORS_ORIGINS ?? "http://localhost:5005").split(",") }));
+app.use(cors({ origin: (process.env.CORS_ORIGINS || "http://localhost:5005").split(",") }));
+
+// One chat turn, streamed back as the AI SDK's UI message stream (SSE).
+app.post("/api/chat", express.json({ limit: "1mb" }), async (req, res) => {
+  const messages = (req.body as { messages?: BuddhaMessage[] })?.messages;
+  if (!Array.isArray(messages) || !messages.some((m) => m.role === "user")) {
+    res.status(400).json({ error: "send {messages: [...]} with at least one user message" });
+    return;
+  }
+  await chat(messages, res);
+});
 
 // Liveness, plus what the agent can reach: the Go core and, through it, Postgres.
 app.get("/healthz", async (_req, res) => {
-  const retrieval = process.env.RETRIEVAL_URL ?? "http://localhost:7890";
+  const retrieval = process.env.RETRIEVAL_URL || "http://localhost:7890";
   let core: Status = "down";
   let db: Status = "unknown";
   try {

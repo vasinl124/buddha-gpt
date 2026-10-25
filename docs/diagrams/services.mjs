@@ -27,7 +27,7 @@ const nodes = [
   box('web', 'ts', 'Web app', ['Next.js 16 · :5005', 'serves pages only']),
   box('agent', 'ts', 'Agent', ['Express 5 + AI SDK 7 · :7891', 'guard · tool loop · checks']),
   box('eval', 'go', 'buddha eval', ['Go CLI · golden set + judge', 'run by GitHub Actions on PRs']),
-  box('retrieval', 'go', 'Retrieval API', ['Go · buddha serve · :7890', 'hybrid search · passages']),
+  box('retrieval', 'go', 'Retrieval API', ['Go · buddha serve · :7890', 'hybrid search · passages · cards']),
   box('sync', 'go', 'buddha sync', ['Go CLI · batch', 'download · clean · embed']),
   box('pg', 'db', 'Postgres 18', ['pgvector + pg_trgm · :5432', 'suttas · paras · vectors']),
   box('openrouter', 'ext', 'OpenRouter', ['HTTPS · :443', 'chat · guard · embeddings · judge']),
