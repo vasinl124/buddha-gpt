@@ -34,11 +34,13 @@ test("drops a sentence that quotes words no passage contains, keeps an exact quo
   const g = new SentenceGate(known());
   const out = g.push(
     'I taught that "birth is stressful, aging is stressful." [[cite:sn56.11#en4]] ' +
-      'I also said "peace comes from within, do not seek it without." [[cite:sn56.11#en4]] Reflect on it. ',
+      'I also said "peace comes from within, do not seek it without." [[cite:sn22.59#en3]] Reflect on it. ',
   );
   assert.equal(out.length, 1);
   assert.match(out[0], /birth is stressful/);
-  assert.deepEqual(g.end().released, ["Reflect on it. "]);
+  const end = g.end();
+  assert.deepEqual(end.released, ["Reflect on it. "]);
+  assert.deepEqual(end.cited, ["sn56.11#en4"]); // the dropped sentence's citation gets no card
   assert.equal(g.dropped.length, 1);
   assert.match(g.dropped[0], /peace comes from within/);
 });

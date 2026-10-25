@@ -140,8 +140,8 @@ function Turn({ message }: { message: BuddhaMessage }) {
             {notice}
           </Badge>
         )}
-        <MessageResponse components={{ a: CiteLink }}>{linkCitations(text)}</MessageResponse>
-        <SourceCards cards={cards} />
+        <MessageResponse components={{ a: CiteLink }}>{linkCitations(text, message.id)}</MessageResponse>
+        <SourceCards replyId={message.id} cards={cards} />
       </MessageContent>
     </Message>
   );
@@ -149,11 +149,11 @@ function Turn({ message }: { message: BuddhaMessage }) {
 
 // [[cite:sn56.11#en5]] → a numbered link to its card, numbered in order of first use (the order
 // the agent sends the cards in).
-function linkCitations(text: string): string {
+function linkCitations(text: string, replyId: string): string {
   const order: string[] = [];
   return text.replace(CITE, (_, id: string) => {
     if (!order.includes(id)) order.push(id);
-    return ` [${order.indexOf(id) + 1}](#${cardAnchor(id)})`;
+    return ` [${order.indexOf(id) + 1}](#${cardAnchor(replyId, id)})`;
   });
 }
 

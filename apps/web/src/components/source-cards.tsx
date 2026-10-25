@@ -4,12 +4,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { LANGS, cardAnchor, displayRef, suttaCentralUrl } from "@/lib/refs";
 
 // The passages a reply relies on, verbatim from the canon. Only these carry his words (PRD §5.2).
-export function SourceCards({ cards }: { cards: SourceCard[] }) {
+export function SourceCards({ replyId, cards }: { replyId: string; cards: SourceCard[] }) {
   if (cards.length === 0) return null;
   return (
     <div className="flex flex-col gap-3">
       {cards.map((card, i) => (
-        <Card key={card.id} id={cardAnchor(card.id)} size="sm" className="scroll-mt-4">
+        <Card key={card.id} id={cardAnchor(replyId, card.id)} size="sm" className="scroll-mt-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Badge variant="secondary">{i + 1}</Badge>

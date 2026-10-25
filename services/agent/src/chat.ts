@@ -28,9 +28,14 @@ const DONT_KNOW = {
   en: "The discourses I can search don't cover this.",
   th: "พระสูตรที่เราค้นได้ไม่ได้กล่าวถึงเรื่องนี้",
 };
+// when retrieval is down: honest about the failure, never claiming the texts are silent (PRD §9)
+const CANT_RECALL = {
+  en: "I can't recall the exact words right now. Please ask again in a little while.",
+  th: "ตอนนี้เรายังนึกถ้อยคำที่แน่ชัดไม่ออก ลองถามใหม่อีกสักครู่",
+};
 
 export async function chat(messages: BuddhaMessage[], res: ServerResponse): Promise<void> {
-  const history = messages.slice(-HISTORY).map(escapeUser);
+  const history = untrusted(messages);
   const question = textOf(history.findLast((m) => m.role === "user"));
   const lang = isThai(question) ? "th" : "en";
 
@@ -46,11 +51,13 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
   };
 
   let note = "Retrieval: ok.";
+  let down = false;
   let passages: core.Passage[] = [];
   try {
     passages = await core.search(question, 8);
   } catch (err) {
     console.error("search:", err);
+    down = true;
     note = "Retrieval: unavailable right now. Say you can't recall the exact words, never that the texts are silent.";
   }
   remember(passages);
@@ -108,13 +115,17 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
         // ponytail: until the guard routes greetings (Phase 3), a short uncited reply counts as chat
         const held = gate.heldText();
         const chatty = held.trim().split(/\s+/).length <= 40 && !held.includes("“") && !held.includes('"');
-        writer.write({ type: "text-delta", id, delta: chatty ? held : DONT_KNOW[lang] });
+        writer.write({ type: "text-delta", id, delta: chatty ? held : (down ? CANT_RECALL : DONT_KNOW)[lang] });
       }
       writer.write({ type: "text-end", id });
       if (gate.dropped.length || gate.strippedIds.length) {
         console.warn(`checks: dropped ${gate.dropped.length} sentences, stripped ${gate.strippedIds.length} citations`);
       }
-      writer.write({ type: "data-cards", data: await core.cards(end.cited).catch(() => []) });
+      const cards = await core.cards(end.cited).catch((err) => {
+        console.error("cards:", err);
+        return [];
+      });
+      writer.write({ type: "data-cards", data: cards });
       writer.write({ type: "finish" });
     },
     onError: (err) => {
@@ -125,11 +136,18 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
   await pipeUIMessageStreamToResponse({ response: res, stream });
 }
 
-// History comes from the browser, so user text can't open a tag or a citation marker (PRD §9).
-function escapeUser(m: BuddhaMessage): BuddhaMessage {
-  if (m.role !== "user") return m;
+// History comes from the browser, so it's untrusted (PRD §9): only user and assistant turns, only
+// their text, and user text can't open a tag or a citation marker.
+function untrusted(messages: BuddhaMessage[]): BuddhaMessage[] {
   const esc = (s: string) => s.replaceAll("[[", "[ [").replaceAll("]]", "] ]").replaceAll("<", "‹").replaceAll(">", "›");
-  return { ...m, parts: m.parts.map((p) => (p.type === "text" ? { ...p, text: esc(p.text) } : p)) };
+  return messages
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .slice(-HISTORY)
+    .map((m) => ({
+      ...m,
+      parts: m.parts.flatMap((p) => (p.type === "text" ? [{ ...p, text: m.role === "user" ? esc(p.text) : p.text }] : [])),
+    }))
+    .filter((m) => m.parts.length > 0);
 }
 
 function textOf(m: BuddhaMessage | undefined): string {

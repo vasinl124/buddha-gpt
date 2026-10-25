@@ -117,12 +117,13 @@ export class SentenceGate {
   // Strips citations of passages not retrieved this turn, and drops the sentence if it quotes
   // words that aren't in any retrieved passage.
   private check(raw: string): string | null {
+    const ids: string[] = [];
     const s = raw.replace(CITE, (marker, id: string) => {
       if (!this.known.has(id)) {
         this.strippedIds.push(id);
         return "";
       }
-      if (!this.cited.includes(id)) this.cited.push(id);
+      ids.push(id);
       return marker;
     });
     const plain = fold(s.replace(CITE, ""));
@@ -133,6 +134,8 @@ export class SentenceGate {
         return null;
       }
     }
+    // only now: a dropped sentence's citations get no card, so the cards keep the chips' numbering
+    for (const id of ids) if (!this.cited.includes(id)) this.cited.push(id);
     return s;
   }
 }

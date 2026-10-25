@@ -8,8 +8,9 @@ export function displayRef(suttaId: string): string {
   return `${name} ${m[2].replace("-", "–")}`;
 }
 
-/** An element id for a card: "sn56.11#en5" → "card-sn56-11-en5". */
-export const cardAnchor = (id: string) => `card-${id.replace(/[^a-z0-9]+/gi, "-")}`;
+/** An element id for a card, unique per reply: ("m1", "sn56.11#en5") → "card-m1-sn56-11-en5".
+ * Two replies can cite the same passage, so the reply's message id is part of it. */
+export const cardAnchor = (replyId: string, id: string) => `card-${`${replyId}-${id}`.replace(/[^a-z0-9]+/gi, "-")}`;
 
 export const suttaCentralUrl = (suttaId: string) => `https://suttacentral.net/${suttaId}`;
 
