@@ -31,7 +31,7 @@ const nodes = [
   box('sync', 'go', 'buddha sync', ['Go CLI · batch', 'download · clean · embed']),
   box('pg', 'db', 'Postgres 18', ['pgvector + pg_trgm · :5432', 'suttas · paras · vectors']),
   box('openrouter', 'ext', 'OpenRouter', ['HTTPS · :443', 'chat · guard · embeddings · judge']),
-  box('sources', 'ext', 'Sources', ['VRI Pali XML · Thai Royal PDFs', 'Ṭhānissaro EPUB · public-domain scans']),
+  box('sources', 'ext', 'Sources', ['VRI Pali XML · Thai Royal PDFs', 'Ṭhānissaro pages · public-domain scans']),
 ]
 
 const label = text => ({ text, width: textWidth(text, 12) + 12, height: 18, layoutOptions: { 'elk.edgeLabels.placement': 'CENTER' } })

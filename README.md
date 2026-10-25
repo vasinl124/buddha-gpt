@@ -2,7 +2,7 @@
 
 Talk with the Buddha in English, Thai or Pali. Every teaching he relies on appears under his reply as the real passage, in Pali, Thai and English, with its source. He never invents scripture.
 
-> **Status:** Phase 0, the skeleton. The design and the plan are in [docs/PRD.md](docs/PRD.md).
+> **Status:** Phase 1: the texts load and search works from the command line. The design and the plan are in [docs/PRD.md](docs/PRD.md).
 
 ![Every service and how it talks to the others](docs/services.svg)
 
@@ -24,6 +24,13 @@ Open <http://localhost:5005>. The page shows whether the agent, the Go core and 
 | Web (Next.js) | <http://localhost:5005/healthz> |
 | Agent (Express) | <http://localhost:7891/healthz> |
 | Retrieval API (Go) | <http://localhost:7890/healthz> |
+
+To load the texts and search them:
+
+```bash
+pnpm sync                          # about a minute the first time; embeddings need OPENROUTER_API_KEY
+pnpm search "four noble truths"
+```
 
 The monorepo layout, commands and conventions are in [AGENTS.md](AGENTS.md).
 

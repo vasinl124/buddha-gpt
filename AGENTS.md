@@ -37,7 +37,8 @@ pnpm dev                  # Go core + agent + web, through concurrently
 pnpm dev:core             # or dev:agent, dev:web: one service
 pnpm lint                 # ESLint, type checks, go vet
 pnpm test                 # TypeScript tests, then go test
-pnpm sync                 # ingest the texts (Phase 1)
+pnpm sync                 # download, parse, load and embed the texts
+pnpm search "anatta"      # the top passages for a query (hybrid, or lexical without a key)
 pnpm eval                 # run the eval suite (Phase 5)
 pnpm diagram              # regenerate docs/services.svg
 ```
@@ -53,7 +54,7 @@ pnpm diagram              # regenerate docs/services.svg
 
 ## Environment
 
-One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, `EVAL_MODE`. The Go core, the agent and Docker Compose read it, and every setting has a local default. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
+One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, `EVAL_MODE`, `EMBED_MODEL`, `EMBED_BASE_URL`. The Go core, the agent and Docker Compose read it, and every setting has a local default. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
 
 ## Rules
 

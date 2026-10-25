@@ -11,6 +11,7 @@
     "dev:agent": "pnpm --filter buddha-gpt-agent dev",
     "dev:web": "pnpm --filter buddha-gpt-web dev",
     "sync": "cd services/core && go run ./cmd/buddha sync",
+    "search": "cd services/core && go run ./cmd/buddha search",
     "eval": "cd services/core && go run ./cmd/buddha eval",
     "lint": "pnpm -r lint && pnpm -r check && cd services/core && go vet ./...",
     "test": "pnpm -r test && cd services/core && go test ./...",
