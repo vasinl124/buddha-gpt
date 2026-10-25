@@ -4,3 +4,7 @@ def is_even(n):
 
 def last_item(items):
     return items[len(items)]
+
+
+def first_item(items):
+    return items[1]
