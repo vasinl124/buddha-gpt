@@ -14,12 +14,13 @@ buddha-gpt/
 ├── services/core/       Go module, skipped by pnpm: one `buddha` binary
 │                        (serve = Retrieval API :7890, sync, eval)
 ├── packages/shared/     @buddha-gpt/shared · TS types used by both web and agent
-├── prompts/             buddha.md: the reply prompt, read by the agent at startup
+├── prompts/             buddha.md (the reply) and guard.md (the router), read by the agent at startup
+├── policy.yaml          crisis words and hotlines, decline topics, risk lists, thresholds
 ├── docs/                PRD.md, diagrams (docs/archive/ is private and git-ignored)
 └── docker-compose.yml   Postgres 18 + pgvector                                        :5432
 ```
 
-`apps/*` are deployed apps, `services/*` are hosted backends, and `packages/*` are shared libraries. Add to `packages/shared` only what both the web app and the agent use. `policy.yaml` and `evals/` arrive in later phases (PRD §12).
+`apps/*` are deployed apps, `services/*` are hosted backends, and `packages/*` are shared libraries. Add to `packages/shared` only what both the web app and the agent use. `evals/` arrives in Phase 5 (PRD §12).
 
 ## Stack
 
