@@ -167,6 +167,7 @@ buddha-gpt/
 
 - **Thin web app.** Next.js serves pages and calls the agent. It holds no business logic: the agent owns the chat turn, and Go owns the data.
 - **Go lives beside TypeScript.** `services/core` has a `go.mod` and no `package.json`, so pnpm skips it and the root scripts call `go` directly.
+- **Why pnpm workspaces and `concurrently`, not Turborepo.** Turborepo's main benefit is caching builds and tests, but it only manages pnpm packages: Go would need a wrapper `package.json`, and three services leave little to cache. Fewer tools also keep Phase 0 short. The layout already fits Turborepo, so adding it later takes about 15 minutes if CI gets slow.
 
 **Root scripts:**
 
