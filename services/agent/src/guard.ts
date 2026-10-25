@@ -41,6 +41,7 @@ export async function guard(messages: ModelMessage[], latest: string): Promise<G
       instructions: PROMPT,
       messages: recent,
       output: Output.object({ schema: Guard }),
+      maxOutputTokens: 500, // a few short fields
       abortSignal: AbortSignal.timeout(15_000),
     });
     return output;
