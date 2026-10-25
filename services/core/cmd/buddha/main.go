@@ -75,7 +75,7 @@ type backend interface {
 	Search(ctx context.Context, query string, k int, exclude []string) (store.Result, error)
 	Cards(ctx context.Context, ids []string) ([]store.Card, error)
 	Passage(ctx context.Context, id string, window int) ([]store.Hit, error)
-	Paragraphs(ctx context.Context, suttaID, lang string, limit int) ([]store.Hit, error)
+	Paragraphs(ctx context.Context, suttaID, lang, near string, limit int) ([]store.Hit, error)
 }
 
 type live struct {
@@ -108,8 +108,8 @@ func (l live) Cards(ctx context.Context, ids []string) ([]store.Card, error) {
 func (l live) Passage(ctx context.Context, id string, window int) ([]store.Hit, error) {
 	return l.st.Passage(ctx, id, window)
 }
-func (l live) Paragraphs(ctx context.Context, suttaID, lang string, limit int) ([]store.Hit, error) {
-	return l.st.Paragraphs(ctx, suttaID, lang, limit)
+func (l live) Paragraphs(ctx context.Context, suttaID, lang, near string, limit int) ([]store.Hit, error) {
+	return l.st.Paragraphs(ctx, suttaID, lang, near, limit)
 }
 
 func routes(b backend) http.Handler {
@@ -163,7 +163,7 @@ func routes(b backend) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"passage": hits})
 	})
-	// a sutta's paragraphs in one language, for Pali mode: ?lang=pi&limit=12
+	// a sutta's paragraphs in one language, for Pali mode: ?lang=pi&limit=12&near=sn56.11%23en5
 	mux.HandleFunc("GET /v1/suttas/{id}/paragraphs", func(w http.ResponseWriter, r *http.Request) {
 		lang := r.URL.Query().Get("lang")
 		limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -174,7 +174,7 @@ func routes(b backend) http.Handler {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "lang is pi, th or en; limit is 1 to 50"})
 			return
 		}
-		hits, err := b.Paragraphs(r.Context(), r.PathValue("id"), lang, limit)
+		hits, err := b.Paragraphs(r.Context(), r.PathValue("id"), lang, r.URL.Query().Get("near"), limit)
 		if err != nil {
 			log.Printf("paragraphs: %v", err)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "paragraphs failed"})

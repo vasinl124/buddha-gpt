@@ -20,7 +20,7 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } fro
 import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { toThaiScript } from "@/lib/pali";
+import { quotesToThaiScript } from "@/lib/pali";
 import { cardAnchor } from "@/lib/refs";
 
 type BuddhaMessage = UIMessage<never, ChatData>;
@@ -182,7 +182,7 @@ function Turn({ message, thaiScript }: { message: BuddhaMessage; thaiScript: boo
         )}
         <div lang={pali ? "pi" : undefined}>
           <MessageResponse components={{ a: CiteLink }}>
-            {linkCitations(pali && thaiScript ? toThaiScript(text) : text, message.id)}
+            {linkCitations(pali && thaiScript ? quotesToThaiScript(text) : text, message.id)}
           </MessageResponse>
         </div>
         {crisis && <Hotlines crisis={crisis} />}

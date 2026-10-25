@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { toThaiScript } from "./pali";
+import { quotesToThaiScript, toThaiScript } from "./pali";
 
 test("Roman Pali in Thai script", () => {
   for (const [roman, thai] of [
@@ -13,4 +13,12 @@ test("Roman Pali in Thai script", () => {
   ]) {
     assert.equal(toThaiScript(roman), thai, roman);
   }
+});
+
+test("only the quoted Pali of a reply turns into Thai script", () => {
+  const reply = "The texts I can search don't contain those words.\n\nEvaṃ me sutaṃ. [[cite:sn56.11#pi1]]\n\n";
+  assert.equal(
+    quotesToThaiScript(reply),
+    "The texts I can search don't contain those words.\n\nเอวํ เม สุตํ. [[cite:sn56.11#pi1]]\n\n",
+  );
 });

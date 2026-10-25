@@ -16,6 +16,15 @@ const VOWELS: Record<string, [string, string]> = {
   u: ["ุ", "อุ"], ū: ["ู", "อู"], e: ["เ", "เอ"], o: ["โ", "โอ"],
 };
 
+/** A Pali-mode reply in Thai script: only its paragraphs that quote a Pali passage (they end in a
+ * [[cite:…#pi…]] marker), so a verdict in English or Thai before them stays as it is. */
+export function quotesToThaiScript(reply: string): string {
+  return reply
+    .split("\n\n")
+    .map((p) => (/\[\[cite:[^\]]*#pi/.test(p) ? toThaiScript(p) : p))
+    .join("\n\n");
+}
+
 /** "Evaṃ me sutaṃ" → "เอวํ เม สุตํ". Citation markers ([[cite:…]]) are left as they are. */
 export function toThaiScript(roman: string): string {
   const s = roman.normalize("NFC").toLowerCase();

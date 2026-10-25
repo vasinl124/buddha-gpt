@@ -37,9 +37,11 @@ export async function passage(id: string, window = 1): Promise<Passage[]> {
   return (await call<{ passage: Passage[] }>(`/v1/passages/${encodeURIComponent(id)}?window=${window}`)).passage;
 }
 
-/** A sutta's paragraphs in one language, in order: the Pali that Pali mode can quote. */
-export async function paragraphs(suttaId: string, lang: string, limit = 12): Promise<Passage[]> {
-  return (await call<{ paragraphs: Passage[] }>(`/v1/suttas/${encodeURIComponent(suttaId)}/paragraphs?lang=${lang}&limit=${limit}`)).paragraphs;
+/** A sutta's paragraphs in one language, in order: the Pali that Pali mode can quote. With near (a
+ * paragraph of that sutta), the window is centred where it falls. */
+export async function paragraphs(suttaId: string, lang: string, limit = 12, near = ""): Promise<Passage[]> {
+  const q = `lang=${lang}&limit=${limit}&near=${encodeURIComponent(near)}`;
+  return (await call<{ paragraphs: Passage[] }>(`/v1/suttas/${encodeURIComponent(suttaId)}/paragraphs?${q}`)).paragraphs;
 }
 
 export async function cards(ids: string[]): Promise<Card[]> {

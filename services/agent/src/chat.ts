@@ -134,9 +134,12 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
         note += ` The person attributed these words to the Buddha: "${escapeTags(g.quote)}". The app has already told them: "${opening}" Don't repeat it, and never claim you said those words.`;
       }
       if (pali && !fixed) {
-        // the Pali of the suttas search found: the model picks from it by ID, code writes it out
-        const suttas = [...new Set(passages.map((h) => h.sutta_id))].slice(0, 3);
-        const pi = (await Promise.all(suttas.map((s) => core.paragraphs(s, "pi", 12)))).flat();
+        // the Pali of the suttas search found, around where each one's best hit falls: the model
+        // picks from it by ID, code writes it out
+        const best = new Map<string, string>(); // sutta → its best hit
+        for (const h of passages) if (!best.has(h.sutta_id)) best.set(h.sutta_id, h.id);
+        const suttas = [...best.keys()].slice(0, 3);
+        const pi = (await Promise.all(suttas.map((s) => core.paragraphs(s, "pi", 12, best.get(s))))).flat();
         for (const p of pi) paliText.set(p.id, p.text);
         passages = [...passages.slice(0, 4), ...pi];
         if (!pi.length) fixed = TEXT.dontKnow[lang];
@@ -254,7 +257,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
       if (mock) writer.write({ type: "data-notice", data: "Mock model: add OPENROUTER_API_KEY for real answers." });
       if (route === "crisis") writer.write({ type: "data-crisis", data: crisis(lang) }); // first, so the numbers show at once
       writer.write({ type: "text-start", id });
-      if (opening) write(`${opening} `);
+      if (opening) write(pali ? `${opening}\n\n` : `${opening} `); // Pali mode: the quotes follow as paragraphs
       let cited: string[] = [];
       if (fixed) {
         if (!opening) write(fixed);
