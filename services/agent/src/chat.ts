@@ -114,7 +114,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse): Prom
       if (!end.grounded) {
         // ponytail: until the guard routes greetings (Phase 3), a short uncited reply counts as chat
         const held = gate.heldText();
-        const chatty = held.trim().split(/\s+/).length <= 40 && !held.includes("“") && !held.includes('"');
+        const chatty = held.trim() !== "" && held.trim().split(/\s+/).length <= 40 && !held.includes("“") && !held.includes('"');
         writer.write({ type: "text-delta", id, delta: chatty ? held : (down ? CANT_RECALL : DONT_KNOW)[lang] });
       }
       writer.write({ type: "text-end", id });
