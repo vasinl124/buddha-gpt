@@ -199,7 +199,7 @@ buddha-gpt/
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Web | Next.js 16, shadcn/ui (Tailwind), AI Elements | AI Elements, a shadcn-based registry from Vercel, supplies the chat parts: `conversation`, `message` (markdown through Streamdown) and `suggestion` (starter questions). The input is shadcn's `InputGroup`, the [1] markers are `Badge`s that link to their card, and cards are shadcn `Card`s. `useChat` points at the agent with `DefaultChatTransport` and keeps the conversation in `localStorage`. Fonts: Noto Sans and Noto Sans Thai through `next/font`, which cover Pali diacritics and Thai |
+| Web | Next.js 16, shadcn/ui (Tailwind), AI Elements | AI Elements, a shadcn-based registry from Vercel, supplies the chat parts: `conversation`, `message` (markdown through Streamdown) and `suggestion` (starter questions). The input is shadcn's `InputGroup`. Replies read as plain speech with no citation markers, and each reply's cards, shadcn `Card`s, fold under a Sources toggle (a native `<details>`). `useChat` points at the agent with `DefaultChatTransport` and keeps the conversation in `localStorage`. Fonts: Noto Sans and Noto Sans Thai through `next/font`, which cover Pali diacritics and Thai |
 | Agent | Node 22, Express 5, AI SDK 7, `@openrouter/ai-sdk-provider` 3.x | `streamText` → `pipeUIMessageStreamToResponse(res)`; `stopWhen: isStepCount(4)`; `prepareStep` sets `activeTools: []` on the last step; the guard uses `Output.object` |
 | Core | Go 1.26: `net/http`, pgx, pgvector-go | One binary, three commands |
 | Database | Postgres 18, pgvector 0.8 (HNSW), `pg_trgm` | Canon and vectors in one database |
