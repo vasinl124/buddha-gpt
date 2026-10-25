@@ -1,10 +1,11 @@
 import type { Card as SourceCard } from "@buddha-gpt/shared";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { toThaiScript } from "@/lib/pali";
 import { LANGS, cardAnchor, displayRef, suttaCentralUrl } from "@/lib/refs";
 
 // The passages a reply relies on, verbatim from the canon. Only these carry his words (PRD §5.2).
-export function SourceCards({ replyId, cards }: { replyId: string; cards: SourceCard[] }) {
+export function SourceCards({ replyId, cards, thaiScript }: { replyId: string; cards: SourceCard[]; thaiScript: boolean }) {
   if (cards.length === 0) return null;
   return (
     <div className="flex flex-col gap-3">
@@ -20,12 +21,14 @@ export function SourceCards({ replyId, cards }: { replyId: string; cards: Source
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {LANGS.map(({ lang, label }) => {
-              const text = card.texts[lang] ?? card.whole?.[lang];
-              if (!text) return null;
+              const roman = card.texts[lang] ?? card.whole?.[lang];
+              if (!roman) return null;
+              const text = lang === "pi" && thaiScript ? toThaiScript(roman) : roman;
               return (
                 <div key={lang} lang={lang} className="flex flex-col gap-1">
                   <span className="text-xs font-medium text-muted-foreground">
                     {label}
+                    {lang === "pi" && thaiScript && " · Thai script"}
                     {!card.texts[lang] && " · whole sutta"}
                   </span>
                   <p className="text-sm whitespace-pre-line">{text}</p>

@@ -4,11 +4,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -74,6 +76,7 @@ type backend interface {
 	Search(ctx context.Context, query string, k int, exclude []string) (store.Result, error)
 	Cards(ctx context.Context, ids []string) ([]store.Card, error)
 	Passage(ctx context.Context, id string, window int) ([]store.Hit, error)
+	Paragraphs(ctx context.Context, suttaID, lang string, limit int) ([]store.Hit, error)
 }
 
 type live struct {
@@ -105,6 +108,9 @@ func (l live) Cards(ctx context.Context, ids []string) ([]store.Card, error) {
 }
 func (l live) Passage(ctx context.Context, id string, window int) ([]store.Hit, error) {
 	return l.st.Passage(ctx, id, window)
+}
+func (l live) Paragraphs(ctx context.Context, suttaID, lang string, limit int) ([]store.Hit, error) {
+	return l.st.Paragraphs(ctx, suttaID, lang, limit)
 }
 
 func routes(b backend) http.Handler {
@@ -157,6 +163,25 @@ func routes(b backend) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"passage": hits})
+	})
+	// a sutta's paragraphs in one language, for Pali mode: ?lang=pi&limit=12
+	mux.HandleFunc("GET /v1/suttas/{id}/paragraphs", func(w http.ResponseWriter, r *http.Request) {
+		lang := r.URL.Query().Get("lang")
+		limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+		if r.URL.Query().Get("limit") == "" {
+			limit, err = 12, nil
+		}
+		if (lang != "pi" && lang != "th" && lang != "en") || err != nil || limit < 1 || limit > 50 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "lang is pi, th or en; limit is 1 to 50"})
+			return
+		}
+		hits, err := b.Paragraphs(r.Context(), r.PathValue("id"), lang, limit)
+		if err != nil {
+			log.Printf("paragraphs: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "paragraphs failed"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"paragraphs": hits})
 	})
 	mux.HandleFunc("POST /v1/search", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
@@ -246,7 +271,52 @@ func runSync(ctx context.Context) error {
 	if err := load(ctx, st, "thanissaro", suttas, paras); err != nil {
 		return err
 	}
+
+	// Thai: the Royal translation, one PDF per volume, with each sutta's start found by its
+	// opening words in sc-data's ID-keyed copy
+	var vols []int
+	for _, v := range canon.ThaiVolumes {
+		vols = append(vols, v.N)
+	}
+	pdfs, err := fetch.Thai(ctx, data, vols)
+	if err != nil {
+		return err
+	}
+	sc, err := fetch.SCData(ctx, data)
+	if err != nil {
+		return err
+	}
+	suttas, paras = nil, nil
+	for _, v := range canon.ThaiVolumes {
+		text, err := pdfText(ctx, pdfs[v.N])
+		if err != nil {
+			return err
+		}
+		refs, err := canon.ThaiRefs(sc, v)
+		if err != nil {
+			return err
+		}
+		s, p, left := canon.ParseThai(text, refs)
+		log.Printf("thai volume %d: %d of %d suttas, %d paragraphs", v.N, len(s), len(refs), len(p))
+		if len(left) > 0 {
+			log.Printf("thai volume %d: left out %s (opening not found, or the sutta after it wasn't)", v.N, strings.Join(left, " "))
+		}
+		suttas, paras = append(suttas, s...), append(paras, p...)
+	}
+	if err := load(ctx, st, "royal", suttas, paras); err != nil {
+		return err
+	}
 	return embedMissing(ctx, st, embed.FromEnv())
+}
+
+// pdfText reads a PDF's text with pdftotext (poppler), which maps Thai through the PDF's own
+// character maps.
+func pdfText(ctx context.Context, path string) (string, error) {
+	out, err := exec.CommandContext(ctx, "pdftotext", "-enc", "UTF-8", path, "-").Output()
+	if errors.Is(err, exec.ErrNotFound) {
+		return "", errors.New("pdftotext not found: install poppler (brew install poppler, or apt install poppler-utils)")
+	}
+	return string(out), err
 }
 
 func load(ctx context.Context, st *store.Store, source string, suttas []canon.Sutta, paras []canon.Para) error {

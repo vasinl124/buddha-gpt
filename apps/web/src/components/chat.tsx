@@ -1,7 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { CITE, type ChatData, type Crisis } from "@buddha-gpt/shared";
+import { CITE, type ChatData, type Crisis, type ReplyLang } from "@buddha-gpt/shared";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { ArrowUpIcon, PhoneIcon, SquarePenIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -16,43 +16,54 @@ import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { SourceCards } from "@/components/source-cards";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
+import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toThaiScript } from "@/lib/pali";
 import { cardAnchor } from "@/lib/refs";
 
 type BuddhaMessage = UIMessage<never, ChatData>;
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7891";
-const SAVED = "buddha-gpt:conversation"; // the conversation lives in this browser only (PRD §11)
+// the conversation and the settings live in this browser only (PRD §11)
+const SAVED = { conversation: "buddha-gpt:conversation", lang: "buddha-gpt:lang", thaiScript: "buddha-gpt:thai-script" };
 const STARTERS = ["What is suffering?", "How do I stop being angry?", "My father died last month", "ทุกข์คืออะไร"];
+const REPLY_LANGS: [ReplyLang, string][] = [["auto", "Auto"], ["en", "EN"], ["th", "ไทย"], ["pi", "Pāli"]];
 
-function saved(): BuddhaMessage[] {
+function load<T>(key: string, fallback: T): T {
   try {
-    return JSON.parse(localStorage.getItem(SAVED) ?? "[]");
+    return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback;
   } catch {
-    return [];
+    return fallback;
+  }
+}
+
+function save(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // private mode or full storage: it just isn't kept
   }
 }
 
 export function Chat() {
   const [input, setInput] = useState("");
+  const [lang, setLang] = useState<ReplyLang>(() => load(SAVED.lang, "auto"));
+  const [thaiScript, setThaiScript] = useState(() => load(SAVED.thaiScript, false));
   const { messages, sendMessage, setMessages, status, error } = useChat<BuddhaMessage>({
-    messages: saved(),
+    messages: load(SAVED.conversation, []),
     transport: new DefaultChatTransport({ api: `${API}/api/chat` }),
   });
   const busy = status === "submitted" || status === "streaming";
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(SAVED, JSON.stringify(messages));
-    } catch {
-      // private mode or full storage: the conversation just isn't kept
-    }
-  }, [messages]);
+  useEffect(() => save(SAVED.conversation, messages), [messages]);
+  useEffect(() => save(SAVED.lang, lang), [lang]);
+  useEffect(() => save(SAVED.thaiScript, thaiScript), [thaiScript]);
 
   const send = (text: string) => {
     if (!text.trim() || busy) return;
-    sendMessage({ text });
+    sendMessage({ text }, { body: { lang } });
     setInput("");
   };
 
@@ -70,7 +81,7 @@ export function Chat() {
               </Suggestions>
             </ConversationEmptyState>
           ) : (
-            messages.map((m) => <Turn key={m.id} message={m} />)
+            messages.map((m) => <Turn key={m.id} message={m} thaiScript={thaiScript} />)
           )}
           {status === "submitted" && <p className="text-sm text-muted-foreground">Searching the canon…</p>}
           {error && <p className="text-sm text-destructive">The reply didn’t arrive. Check that the agent is running and try again.</p>}
@@ -98,20 +109,46 @@ export function Chat() {
             maxLength={2000}
             aria-label="Your message"
           />
-          <InputGroupAddon align="block-end" className="justify-between">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={busy || messages.length === 0}
-              onClick={() => setMessages([])}
-            >
-              <SquarePenIcon data-icon="inline-start" />
-              New conversation
-            </Button>
-            <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={busy || !input.trim()} aria-label="Send">
-              <ArrowUpIcon />
-            </InputGroupButton>
+          <InputGroupAddon align="block-end" className="flex-wrap justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1">
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
+                value={lang}
+                onValueChange={(v) => v && setLang(v as ReplyLang)}
+                aria-label="Reply language"
+              >
+                {REPLY_LANGS.map(([value, label]) => (
+                  <ToggleGroupItem key={value} value={value}>
+                    {label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <Toggle variant="outline" size="sm" pressed={thaiScript} onPressedChange={setThaiScript} aria-label="Show Pali in Thai script">
+                อักษรไทย
+              </Toggle>
+            </div>
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <InputGroupButton
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={busy || messages.length === 0}
+                    onClick={() => setMessages([])}
+                    aria-label="New conversation"
+                  >
+                    <SquarePenIcon />
+                  </InputGroupButton>
+                </TooltipTrigger>
+                <TooltipContent>New conversation</TooltipContent>
+              </Tooltip>
+              <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={busy || !input.trim()} aria-label="Send">
+                <ArrowUpIcon />
+              </InputGroupButton>
+            </div>
           </InputGroupAddon>
         </InputGroup>
       </form>
@@ -122,7 +159,7 @@ export function Chat() {
   );
 }
 
-function Turn({ message }: { message: BuddhaMessage }) {
+function Turn({ message, thaiScript }: { message: BuddhaMessage; thaiScript: boolean }) {
   const text = message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
   if (message.role === "user") {
     return (
@@ -134,6 +171,7 @@ function Turn({ message }: { message: BuddhaMessage }) {
   const cards = message.parts.flatMap((p) => (p.type === "data-cards" ? p.data : []));
   const notice = message.parts.find((p) => p.type === "data-notice")?.data;
   const crisis = message.parts.find((p) => p.type === "data-crisis")?.data;
+  const pali = message.parts.some((p) => p.type === "data-pali"); // Pali mode: the text is the canon's own words
   return (
     <Message from="assistant">
       <MessageContent className="w-full">
@@ -142,9 +180,13 @@ function Turn({ message }: { message: BuddhaMessage }) {
             {notice}
           </Badge>
         )}
-        <MessageResponse components={{ a: CiteLink }}>{linkCitations(text, message.id)}</MessageResponse>
+        <div lang={pali ? "pi" : undefined}>
+          <MessageResponse components={{ a: CiteLink }}>
+            {linkCitations(pali && thaiScript ? toThaiScript(text) : text, message.id)}
+          </MessageResponse>
+        </div>
         {crisis && <Hotlines crisis={crisis} />}
-        <SourceCards replyId={message.id} cards={cards} />
+        <SourceCards replyId={message.id} cards={cards} thaiScript={thaiScript} />
       </MessageContent>
     </Message>
   );

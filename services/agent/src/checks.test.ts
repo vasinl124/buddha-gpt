@@ -69,6 +69,31 @@ test("without requireCite, sentences show at once; blocked words drop the senten
   assert.equal(g.dropped.length, 2);
 });
 
+test("a sentence in the other language is dropped", () => {
+  const g = new SentenceGate(known(), { requireCite: false, lang: "th" });
+  assert.deepEqual(g.push("This one is English. ความเกิดเป็นทุกข์ [[cite:sn56.11#en4]] "), []);
+  assert.deepEqual(g.end().released, ["ความเกิดเป็นทุกข์ [[cite:sn56.11#en4]] "]);
+});
+
+test("three Pali words in a row must come from a passage", () => {
+  const pali = new Map([["sn56.11#pi3", fold("Idaṃ kho pana, bhikkhave, dukkhaṃ ariyasaccaṃ – jātipi dukkhā, jarāpi dukkhā")]]);
+  const g = new SentenceGate(pali, { requireCite: false });
+  // copied (punctuation aside) is kept; a line no passage has is dropped
+  assert.deepEqual(g.push("As it says, jātipi dukkhā jarāpi dukkhā. Sabbe sattā bhavantu sukhitattā. Be well. "), [
+    "As it says, jātipi dukkhā jarāpi dukkhā. ",
+  ]);
+  assert.deepEqual(g.end().released, ["Be well. "]);
+  assert.equal(g.dropped.length, 1);
+  // names aren't a run of Pali
+  const names = new SentenceGate(pali, { requireCite: false });
+  const shown = [
+    ...names.push("Ānanda and Sāriputta went with Moggallāna. Sāriputta, Moggallāna, Ānanda: all three listened. "),
+    ...names.end().released,
+  ];
+  assert.equal(shown.length, 2);
+  assert.equal(names.dropped.length, 0);
+});
+
 test("sentence boundaries", () => {
   assert.equal(sentenceEnd("Then Ven. Ānanda went. Next"), "Then Ven. Ānanda went. ".length);
   assert.equal(sentenceEnd("No end yet"), -1);

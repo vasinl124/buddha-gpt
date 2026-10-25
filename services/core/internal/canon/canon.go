@@ -59,6 +59,10 @@ func split(s string, max int) []string {
 		out = append(out, strings.TrimSpace(s[:cut]))
 		s = strings.TrimSpace(s[cut:])
 	}
+	if len(out) > 0 && len(s) < 10 { // a stray end ("ฯ", "…") joins the piece before it
+		out[len(out)-1] += " " + s
+		return out
+	}
 	return append(out, s)
 }
 

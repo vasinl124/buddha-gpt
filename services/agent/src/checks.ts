@@ -25,6 +25,24 @@ export function isThai(s: string): boolean {
 }
 
 const QUOTED = /"([^"]{12,})"/g; // a quoted span long enough to be a claim, on folded text
+// a run of Pali: words with Pali diacritics, at most one other word between them. Three or more
+// words of it must be copied from a passage (PRD §5.1); single terms are fine.
+const DIACRITIC = String.raw`[\p{L}’']*[āīūṃṅñṭḍṇḷ][\p{L}’']*`;
+const GAP = String.raw`[\s,;–-]+`;
+const PALI_RUN = new RegExp(`${DIACRITIC}(?:${GAP}(?:[\\p{L}’']+${GAP})?${DIACRITIC})+`, "giu");
+// English between Pali words ("Ānanda and Sāriputta"), or several capitals (a list of names), means
+// it isn't a run of Pali
+const ENGLISH = new Set("and or the of in at to with from by for on as is was are a an but his her its this that".split(" "));
+const lettersOnly = (s: string) => fold(s).replace(/[^\p{L}]+/gu, " ").trim();
+
+function isPaliRun(run: string): boolean {
+  const words = run.split(/[\s,;–-]+/).filter(Boolean);
+  return (
+    words.length >= 3 &&
+    words.filter((w) => /^\p{Lu}/u.test(w)).length <= 1 &&
+    !words.some((w) => ENGLISH.has(w.toLowerCase()))
+  );
+}
 const ABBREV = /\b(ven|mt|dr|st|e\.g|i\.e|cf|vs|etc|no)\.$/i;
 
 // The end of a sentence: . ? ! or …, closing quotes, then any citation markers, then a space
@@ -58,6 +76,8 @@ export interface GateEnd {
 export interface GateOptions {
   /** Hold the reply until its first valid citation: answers do, crisis, decline and chat don't. */
   requireCite?: boolean;
+  /** The reply language: a sentence in the other one is dropped (PRD §9). */
+  lang?: "en" | "th";
   /** Drop any sentence whose folded text matches (risk names; numbers and links on a crisis turn). */
   blocked?: RegExp;
 }
@@ -140,7 +160,11 @@ export class SentenceGate {
       return marker;
     });
     const plain = fold(s.replace(CITE, ""));
-    if (this.opts.blocked?.test(plain)) {
+    const wrongLang = this.opts.lang && /\p{L}{5}/u.test(plain) && isThai(plain) !== (this.opts.lang === "th");
+    const madePali = [...s.replace(CITE, "").matchAll(PALI_RUN)].some(
+      ([run]) => isPaliRun(run) && ![...this.known.values()].some((text) => lettersOnly(text).includes(lettersOnly(run))),
+    );
+    if (this.opts.blocked?.test(plain) || wrongLang || madePali) {
       this.dropped.push(raw.trim());
       return null;
     }
