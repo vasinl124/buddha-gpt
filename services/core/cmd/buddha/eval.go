@@ -82,6 +82,7 @@ var (
 	noQuote  = []string{"The texts I can search don't contain those words.", "พระสูตรที่เราค้นได้ไม่มีถ้อยคำนั้น"}
 	citeMark = regexp.MustCompile(`\[\[cite:[^\]\s]+\]\]`)
 	quoted   = regexp.MustCompile(`["“]([^"”]{12,})["”]`)
+	english  = regexp.MustCompile(`(?i)\b(the|and|is|of)\b`)
 )
 
 func runEval(ctx context.Context, args []string) error {
@@ -306,7 +307,7 @@ func replyLang(s string) string {
 	switch {
 	case letters > 0 && float64(thai)/float64(letters) > 0.3:
 		return "th"
-	case strings.ContainsAny(s, "āīūṃ") && !regexp.MustCompile(`(?i)\b(the|and|is|of)\b`).MatchString(s):
+	case strings.ContainsAny(s, "āīūṃ") && !english.MatchString(s):
 		return "pi"
 	}
 	return "en"
