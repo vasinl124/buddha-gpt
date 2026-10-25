@@ -69,6 +69,16 @@ test("without requireCite, sentences show at once; blocked words drop the senten
   assert.equal(g.dropped.length, 2);
 });
 
+test("the model's copy of a sentence code already showed isn't shown twice", () => {
+  const g = new SentenceGate(known(), { requireCite: false, shown: "Not in those words, but I taught something close." });
+  assert.deepEqual(g.push("Not in those words, but I taught something close. Birth is stressful. "), []);
+  assert.deepEqual(g.end().released, ["Birth is stressful. "]);
+  assert.equal(g.dropped.length, 0);
+  const th = new SentenceGate(known(), { requireCite: false, lang: "th", shown: "ไม่ใช่ด้วยถ้อยคำนั้น" });
+  th.push("ไม่ใช่ด้วยถ้อยคำนั้น ความเกิดเป็นทุกข์ [[cite:sn56.11#en4]]");
+  assert.deepEqual(th.end().released, [" ความเกิดเป็นทุกข์ [[cite:sn56.11#en4]]"]);
+});
+
 test("a sentence in the other language is dropped", () => {
   const g = new SentenceGate(known(), { requireCite: false, lang: "th" });
   assert.deepEqual(g.push("This one is English. ความเกิดเป็นทุกข์ [[cite:sn56.11#en4]] "), []);

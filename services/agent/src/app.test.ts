@@ -64,14 +64,14 @@ function fakeRetrieval() {
 type Seen = ReturnType<typeof fakeRetrieval>["seen"];
 
 // Runs fn against a live agent (mock model, no key) and a fake core.
-async function withAgent(fn: (post: (messages: unknown[], lang?: string) => Promise<Turn>, seen: Seen) => Promise<void>) {
+async function withAgent(fn: (post: (messages: unknown[]) => Promise<Turn>, seen: Seen) => Promise<void>) {
   delete process.env.OPENROUTER_API_KEY;
   const core = fakeRetrieval();
   const agent = createServer(app);
   try {
     process.env.RETRIEVAL_URL = await listen(core.server);
     const url = await listen(agent);
-    await fn((messages, lang) => post(url, messages, lang), core.seen);
+    await fn((messages) => post(url, messages), core.seen);
   } finally {
     agent.close();
     core.server.close();
@@ -84,8 +84,8 @@ interface Turn {
   data: (type: string) => any;
 }
 
-async function post(url: string, messages: unknown[], lang?: string): Promise<Turn> {
-  const res = await fetch(`${url}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, lang }) });
+async function post(url: string, messages: unknown[]): Promise<Turn> {
+  const res = await fetch(`${url}/api/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });
   const chunks = (await res.text())
     .split("\n")
     .filter((l) => l.startsWith("data: ") && l !== "data: [DONE]")
@@ -142,25 +142,25 @@ test("a lottery request gets a kind no with DN 1's card, not a search", () =>
 test("words the texts don't contain get the honest verdict first", () =>
   withAgent(async (post, seen) => {
     const turn = await post([user('Did the Buddha say "peace comes from within"?')]);
-    assert.ok(turn.text.startsWith("The texts I can search don't contain those words. "), turn.text);
+    assert.ok(turn.text.startsWith("I don't recall saying those words. "), turn.text);
     assert.ok(seen.searches.some((s) => s.query === "peace comes from within"));
   }));
 
-test("Pali mode quotes the canon verbatim: the model names passages, code writes them out", () =>
+test("asked for the Pali, it quotes the canon verbatim: the model names passages, code writes them out", () =>
   withAgent(async (post, seen) => {
-    const turn = await post([user("What is suffering?")], "pi");
+    const turn = await post([user("What is suffering? Answer in Pali.")]);
     assert.ok(turn.text.startsWith("Idaṃ kho pana, bhikkhave (sn56.11). [[cite:sn56.11#pi1]]"), turn.text);
     assert.deepEqual(seen.cards, [["sn56.11#pi1", "dhp1-20#pi1"]]);
     assert.deepEqual(seen.near, ["sn56.11#en4", "dhp1-20#en1"]); // each sutta's Pali around its best hit
     assert.equal(turn.data("data-pali"), true);
   }));
 
-test("a Thai question gets a Thai reply; the switch can force English", () =>
+test("a reply is in the message's language, or the one it asks for", () =>
   withAgent(async (post) => {
-    const thai = await post([user("ทุกข์คืออะไร")]);
-    assert.match(thai.text, /นี่คือคำตอบจำลอง.*\[\[cite:sn56\.11#en4\]\]/);
-    const forced = await post([user("ทุกข์คืออะไร")], "en");
-    assert.match(forced.text, /^This is a mock reply/);
+    assert.match((await post([user("ทุกข์คืออะไร")])).text, /นี่คือคำตอบจำลอง.*\[\[cite:sn56\.11#en4\]\]/);
+    assert.match((await post([user("ทุกข์คืออะไร ตอบเป็นภาษาอังกฤษ")])).text, /^This is a mock reply/);
+    assert.match((await post([user("What is suffering? Answer in Thai.")])).text, /^นี่คือคำตอบจำลอง/);
+    assert.equal((await post([user("ทุกข์คืออะไร ขอเป็นภาษาบาลี")])).data("data-pali"), true);
   }));
 
 test("eval mode answers in JSON with a debug block, and only when EVAL_MODE is on", async () => {

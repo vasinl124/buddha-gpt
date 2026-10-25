@@ -18,6 +18,7 @@ export const Guard = z.object({
   decline_topic: z.enum(topics).nullable(),
   search_query: z.string(),
   quote: z.string(), // words the person attributes to the Buddha, or ""
+  reply_lang: z.enum(["en", "th", "pi"]).nullable(), // a reply language the person asked for, or null
 });
 export type Guard = z.infer<typeof Guard>;
 export type Route = Guard["route"];
@@ -49,7 +50,7 @@ export async function guard(messages: ModelMessage[], latest: string): Promise<G
     return output;
   } catch (err) {
     console.error("guard:", err);
-    return { route: "answer", decline_topic: null, search_query: latest, quote: "" };
+    return { route: "answer", decline_topic: null, search_query: latest, quote: "", reply_lang: null };
   }
 }
 
@@ -57,7 +58,9 @@ export async function guard(messages: ModelMessage[], latest: string): Promise<G
 function mockGuard(latest: string): Guard {
   const t = fold(latest);
   const quote = latest.match(/(?:buddha (?:really )?(?:say|said)|ตรัสว่า)[,:]?\s*["“']([^"”']+)["”']/i)?.[1] ?? "";
-  const guess = (route: Route, decline_topic: string | null = null): Guard => ({ route, decline_topic, search_query: latest, quote });
+  const asked = t.match(/\bin (english|thai|pali)\b|ภาษา(อังกฤษ|ไทย|บาลี)/)?.[0] ?? "";
+  const reply_lang = !asked ? null : /english|อังกฤษ/.test(asked) ? "en" : /thai|ไทย/.test(asked) ? "th" : "pi";
+  const guess = (route: Route, decline_topic: string | null = null): Guard => ({ route, decline_topic, search_query: latest, quote, reply_lang });
   if (/lottery|lotto|หวย|เลขเด็ด/.test(t)) return guess("decline", "lottery");
   if (/^(hi|hello|hey|thanks|thank you)\b|^(สวัสดี|ขอบคุณ)/.test(t)) return guess("chat");
   return guess("answer");

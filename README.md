@@ -2,15 +2,15 @@
 
 Talk with the Buddha in English, Thai or Pali. He answers in plain speech, and Sources under each reply opens the real passages he drew on, in Pali, Thai and English. He never invents scripture.
 
-![A Thai question, Pāli mode, a popular quote checked, a lottery request and a crisis message](docs/media/demo.gif)
+![A Thai question, the same question asked in Pali, a popular quote checked, a lottery request and a crisis message](docs/media/demo.gif)
 
 [Watch the demo as a video](docs/media/demo.mp4). The design and the plan are in [docs/PRD.md](docs/PRD.md).
 
 | Sources opens the passages behind an answer, here in Pali, Thai and English | Ask in Thai, and he answers in Thai |
 |---|---|
 | ![An answer about the four noble truths, with its sources open](docs/media/answer.png) | ![A Thai question answered in Thai with the noble truth of suffering, its sources folded below](docs/media/thai.png) |
-| **Pāli mode answers in the canon's own words, here in Thai script** | **A popular quote, checked: a similar teaching, in different words** |
-| ![Pāli mode: the reply is the canon's own Pali, shown in Thai script](docs/media/pali.png) | ![Asked whether the Buddha said a popular quote, the app checks the texts and says what they hold](docs/media/quote.png) |
+| **Ask for the Pali, and he answers in the canon's own words, here in Thai script** | **A popular quote, checked: a similar teaching, in different words** |
+| ![Asked for the Pali, the reply is the canon's own Pali, shown in Thai script](docs/media/pali.png) | ![Asked whether the Buddha said a popular quote, the app checks the texts and says what they hold](docs/media/quote.png) |
 | **Lottery numbers get a kind no, with a teaching** | **A crisis message gets the right numbers at once** |
 | ![A Thai lottery request gets a kind no, its source folded below](docs/media/decline.png) | ![A crisis message answered with Thailand's hotline numbers](docs/media/crisis.png) |
 
@@ -48,7 +48,7 @@ Then ask a question on the page. Without `OPENROUTER_API_KEY`, a mock model answ
 
 ## Evals
 
-`evals/cases/*.jsonl` holds 40 cases, half in Thai: doctrine, life situations, follow-ups, Pali mode, fake quotes, declines, crisis, don't-know and prompt injection. `buddha eval` plays them against the agent and checks the gates in PRD §10:
+`evals/cases/*.jsonl` holds 42 cases, half in Thai: doctrine, life situations, follow-ups, Pali mode, a reply language asked for in the message, fake quotes, declines, crisis, don't-know and prompt injection. `buddha eval` plays them against the agent and checks the gates in PRD §10:
 
 ```bash
 EVAL_MODE=1 pnpm dev   # eval mode answers in JSON with a debug block

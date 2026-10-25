@@ -35,8 +35,8 @@ Each part exists to show one skill:
 
 **The two-minute demo** (the README GIF):
 1. Ask in Thai "ทุกข์คืออะไร" (what is suffering?). He answers in Thai, with a card for SN 56.11 in Pali, Thai and English.
-2. Switch to Pali. He answers with the canon's own words.
-3. "Did the Buddha say 'peace comes from within'?" He says the texts he can search don't contain those words.
+2. Ask for the Pali ("ขอเป็นภาษาบาลี"). He answers with the canon's own words, in Thai script.
+3. "Did the Buddha say 'peace comes from within'?" He says he doesn't recall saying those words.
 4. "ขอเลขเด็ดงวดนี้" (give me lucky lottery numbers). A kind no, pointing to DN 1.
 5. A message from someone in crisis. Plain words and the right hotline numbers.
 6. A PR that weakens the prompt. The eval gate turns red.
@@ -45,8 +45,8 @@ Each part exists to show one skill:
 
 | Area | MVP | Later |
 |---|---|---|
-| Chat | Streaming; multi-turn, with follow-ups resolved from context (§9); English / Thai / Pali switch, auto-detecting Thai vs English; starter questions; history kept in the browser | 👍/👎 feedback |
-| Cards | Pali (Roman script, Thai-script toggle), Thai and English, verbatim, with credits and links | Paragraph alignment for every sutta (§8.3) |
+| Chat | Streaming; multi-turn, with follow-ups resolved from context (§9); replies in the message's language, or the one it asks for: English, Thai or Pali; starter questions; history kept in the browser | 👍/👎 feedback |
+| Cards | Pali (in Thai script when the conversation is in Thai, otherwise Roman), Thai and English, verbatim, with credits and links | Paragraph alignment for every sutta (§8.3) |
 | Corpus | DN, MN, SN, AN, Dhammapada, Sutta Nipāta | The rest of the Khuddaka, the Vinaya, the Abhidhamma |
 | Tools | `search_canon`, `get_passage` | `lookup_pali_term` (Digital Pali Dictionary) |
 | Safety | Crisis path, declines, don't-know, risk filters, fake-quote check | — |
@@ -59,15 +59,15 @@ Each part exists to show one skill:
 
 | Reply language | What he writes |
 |---|---|
-| English or Thai | His own words, in his voice, with citations. Auto-detected: Thai if more than 30% of the message's letters are Thai script, otherwise English. The switch overrides. |
-| Pali (switch only) | The canon's own words. The model picks 1–3 passages and writes only their IDs (`[[quote:sn56.11#pi3]]`); code inserts the verbatim Pali. Each passage's card carries its Thai and English. |
+| English or Thai | His own words, in his voice, with citations. The language the person asked for ("answer in Thai", which the guard reports), else the message's own: Thai if more than 30% of its letters are Thai script, otherwise English. Other languages get English. |
+| Pali (asked for) | The canon's own words. The model picks 1–3 passages and writes only their IDs (`[[quote:sn56.11#pi3]]`); code inserts the verbatim Pali. Each passage's card carries its Thai and English. |
 
 - The model never writes Pali and never translates scripture. In every mode, a run of three or more Pali words that doesn't match retrieved Pali is removed (§9).
-- Crisis, decline, redirect and don't-know replies are never in Pali. They use the UI language, because someone in crisis has to understand the reply.
-- Pali shows in Roman script (*dukkha*, *anattā*) with a Thai-script toggle; VRI's XML ships both.
+- Crisis, decline, redirect and don't-know replies are never in Pali. They use the person's language, because someone in crisis has to understand the reply.
+- Pali shows in Thai script when Thai is in the conversation, as Thai editions print it, and in Roman script (*dukkha*, *anattā*) otherwise; VRI's XML ships both.
 
 ```text
-You (Pali mode): What is suffering?
+You:             What is suffering? Answer in Pali.
 Buddha:          jātipi dukkhā, jarāpi dukkhā …   ← inserted by code from SN 56.11
                  [card: SN 56.11 · Pali · Thai · English]
 ```
@@ -75,6 +75,7 @@ Buddha:          jātipi dukkhā, jarāpi dukkhā …   ← inserted by code fro
 ### 5.2 Persona
 
 - He speaks in the first person, as in the suttas: plain words, at most one simile, often a question back. Under 120 words unless asked to go deeper; no bullet lists.
+- He teaches as someone speaking, not reading: never "the Buddha taught" or "this passage says", and no talk of passages, texts or searching. Code's own lines are in his voice too: "I don't recall teaching about this."
 - In Thai he calls himself เรา or ตถาคต, as the Thai Tipitaka does, in a plain, gentle register with no ครับ/ค่ะ.
 - He is honest about what he is. A line under the chat says this is an AI drawing on the Pali Canon, and asked "are you really the Buddha?", he tells the plain truth.
 - **Only the cards carry his words.** AN 2.23 says that whoever presents what the Tathāgata didn't say as his words misrepresents him. So every reply is labelled as an AI reflection on the passages shown, and any span in quotes, or reported as something he said, must match retrieved text or it's removed.
@@ -92,7 +93,7 @@ Every turn gets exactly one route before anything is shown:
 | Decline | Lottery numbers, fortune-telling, amulet powers; present-day politics and the monarchy; claims about anyone's karma or rebirth; personal medical, legal or financial advice; role-play, invented suttas, "ignore your rules" | One or two kind sentences, with a teaching where one fits: lottery → DN 1, stock tips → AN 8.54 (a livelihood in tune; DN 31 has no English in our sources), karma → AN 4.77. Politics and the monarchy get a plain no and no card |
 | Redirect | A fair request in the wrong place ("fix my code") | One line on what he can help with |
 | Chat | Greetings, thanks, questions about the app | Short and warm |
-| Don't know | Nothing he can search answers it | "The discourses I can search don't cover this." Never "the texts are silent", except for curated cases |
+| Don't know | Nothing he can search answers it | "I don't recall teaching about this." Never "the texts are silent", except for curated cases |
 | Answer | The texts speak to it | An answer from the passages, with cards |
 
 Precedence: crisis > decline > redirect > chat > don't know > answer.
@@ -100,7 +101,7 @@ Precedence: crisis > decline > redirect > chat > don't know > answer.
 - **Who decides.** Crisis keywords in code *or* the guard classifier, a small structured-output call: either one wins. The guard picks the other routes, and a retrieval score below the threshold turns an answer into don't know.
 - **A life situation beats a topic match.** He answers the grief and declines only the prediction inside it: "I won't say where your mother was reborn, but…"
 - **The Vakkali problem.** Naive RAG would show a user in crisis the suttas about monks who ended their lives (Vakkali SN 22.87, Channa SN 35.87, Godhika SN 4.23, SN 54.9). Once a conversation shows risk, Go filters those passages out of search and the reply check blocks their names.
-- **Fake quotes.** When the user attributes words to the Buddha, code looks them up. A close match shows "similar teaching, different wording" with its card; no match gets "the texts I can search don't contain those words".
+- **Fake quotes.** When the user attributes words to the Buddha, code looks them up. The same words get "Yes, those words are among my teachings" and a close match "Not in those words, but I taught something close", each with its card; no match gets "I don't recall saying those words".
 - **Commentary isn't canon.** Later stories, such as Kisā Gotamī and the mustard seed, are labelled as later tradition and never cited as his words.
 
 ## 7. Architecture
@@ -112,7 +113,7 @@ Precedence: crisis > decline > redirect > chat > don't know > answer.
 | # | From → To | How it travels | Port | Who waits | What flows |
 |---|---|---|---|---|---|
 | 1 | Browser → Web app | HTTP | 5005 | the user | Pages and JavaScript |
-| 2 | Browser → Agent | HTTP POST `/api/chat`, reply streamed back as SSE | 7891 | the user | In: the messages (history comes from the browser) and the language switch. Out: the reply, sentence by sentence, then the cards |
+| 2 | Browser → Agent | HTTP POST `/api/chat`, reply streamed back as SSE | 7891 | the user | In: the messages (history comes from the browser). Out: the reply, sentence by sentence, then the cards |
 | 3 | Agent → OpenRouter | HTTPS, OpenAI-compatible, streamed | 443 | the user | The guard call, then the reply call with tools |
 | 4 | Agent → Retrieval API | HTTP/JSON: `POST /v1/search`, `GET /v1/passages/{id}`, `GET /v1/suttas/{id}/paragraphs`, `POST /v1/cards` | 7890 | the user | A query and filters in; passages with IDs out (in Pali mode, the top suttas' Pali too). Then the cited IDs in; the cards out, verbatim from the database |
 | 5 | Retrieval API → Postgres | SQL (pgx) | 5432 | the user | Hybrid search: pgvector plus trigrams |
@@ -199,7 +200,7 @@ buddha-gpt/
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Web | Next.js 16, shadcn/ui (Tailwind), AI Elements | AI Elements, a shadcn-based registry from Vercel, supplies the chat parts: `conversation`, `message` (markdown through Streamdown) and `suggestion` (starter questions). The input is shadcn's `InputGroup`. Replies read as plain speech with no citation markers, and each reply's cards, shadcn `Card`s, fold under a Sources toggle (a native `<details>`). `useChat` points at the agent with `DefaultChatTransport` and keeps the conversation in `localStorage`. Fonts: Noto Sans and Noto Sans Thai through `next/font`, which cover Pali diacritics and Thai |
+| Web | Next.js 16, shadcn/ui (Tailwind), AI Elements | AI Elements, a shadcn-based registry from Vercel, supplies the chat parts: `conversation`, `message` (markdown through Streamdown) and `suggestion` (starter questions). The input is shadcn's `InputGroup`. Replies read as plain speech with no citation markers, and each reply's cards, shadcn `Card`s, fold under a Sources toggle (a native `<details>`). Motion only shows state: a breathing dot holds a reply's place until its first words arrive (the checks hold a reply until its first citation), the words fade in as they stream (Streamdown's `animated`), and reduced motion turns it all off. While a reply streams, Send becomes Stop (or Esc); a failed reply offers Try again. `useChat` points at the agent with `DefaultChatTransport` and keeps the conversation in `localStorage`. Fonts: Noto Sans and Noto Sans Thai through `next/font`, which cover Pali diacritics and Thai |
 | Agent | Node 22, Express 5, AI SDK 7, `@openrouter/ai-sdk-provider` 3.x | `streamText` → `pipeUIMessageStreamToResponse(res)`; `stopWhen: isStepCount(4)`; `prepareStep` sets `activeTools: []` on the last step; the guard uses `Output.object` |
 | Core | Go 1.26: `net/http`, pgx, pgvector-go | One binary, three commands |
 | Database | Postgres 18, pgvector 0.8 (HNSW), `pg_trgm` | Canon and vectors in one database |
@@ -294,7 +295,7 @@ There are no chat tables: history stays in the browser.
 
 ![One chat turn, step by step: retrieval, generation, then checks and cards](chat-turn.svg)
 
-1. **Guard, then the first search.** Code checks crisis keywords and length. The guard reads the recent turns and returns the route, the decline topic, any words the user attributes to the Buddha, and `search_query`: the latest message rewritten to stand on its own. So "and the second one?" after the four noble truths becomes "the second noble truth, the origin of suffering". Code then calls `POST /v1/search` with it for the top 8, leaving out the risk suttas once the conversation shows risk. The language comes from code (§5.1), not the guard. Streaming the guard so search starts as soon as `search_query` arrives is a later latency win.
+1. **Guard, then the first search.** Code checks crisis keywords and length. The guard reads the recent turns and returns the route, the decline topic, any words the user attributes to the Buddha, and `search_query`: the latest message rewritten to stand on its own. So "and the second one?" after the four noble truths becomes "the second noble truth, the origin of suffering". Code then calls `POST /v1/search` with it for the top 8, leaving out the risk suttas once the conversation shows risk. The guard also reports a reply language the person asked for, if any; otherwise code picks it (§5.1). Streaming the guard so search starts as soon as `search_query` arrives is a later latency win.
 2. **Reply.** `streamText` with `search_canon` and `get_passage`, at most 4 steps, the last one without tools. The model cites by ID (`[[cite:mn10#en12]]`), or in Pali mode quotes by ID (`[[quote:…]]`).
 3. **Checks, one sentence at a time.** Nothing reaches the browser until it passes:
    - citations must be IDs retrieved in this turn; any others are stripped;

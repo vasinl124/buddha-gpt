@@ -1,10 +1,11 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { CITE, type ChatData, type Crisis, type ReplyLang } from "@buddha-gpt/shared";
+import { CITE, type ChatData, type Crisis } from "@buddha-gpt/shared";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { ArrowUpIcon, PhoneIcon, SquarePenIcon } from "lucide-react";
+import { ArrowUpIcon, PhoneIcon, RotateCcwIcon, SquareIcon, SquarePenIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import type { AnimateOptions } from "streamdown";
 import {
   Conversation,
   ConversationContent,
@@ -16,19 +17,22 @@ import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { SourceCards } from "@/components/source-cards";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
-import { Toggle } from "@/components/ui/toggle";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { quotesToThaiScript } from "@/lib/pali";
 
 type BuddhaMessage = UIMessage<never, ChatData>;
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7891";
-// the conversation and the settings live in this browser only (PRD §11)
-const SAVED = { conversation: "buddha-gpt:conversation", lang: "buddha-gpt:lang", thaiScript: "buddha-gpt:thai-script" };
+// the conversation lives in this browser only (PRD §11)
+const SAVED = "buddha-gpt:conversation";
 const STARTERS = ["What is suffering?", "How do I stop being angry?", "My father died last month", "ทุกข์คืออะไร"];
-const REPLY_LANGS: [ReplyLang, string][] = [["auto", "Auto"], ["en", "EN"], ["th", "ไทย"], ["pi", "Pāli"]];
+// Thai in a turn shows its Pali in Thai script, as Thai editions print it; otherwise it's Roman
+const THAI = /[฀-๿]/;
+// the agent releases a reply a sentence at a time: its words fade in as they arrive
+const WORDS: AnimateOptions = { animation: "blurIn", duration: 300, easing: "var(--ease-out-quart)" };
+const ENTER = "animate-in fade-in-0 duration-300 ease-out-quart";
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -48,21 +52,22 @@ function save(key: string, value: unknown) {
 
 export function Chat() {
   const [input, setInput] = useState("");
-  const [lang, setLang] = useState<ReplyLang>(() => load(SAVED.lang, "auto"));
-  const [thaiScript, setThaiScript] = useState(() => load(SAVED.thaiScript, false));
-  const { messages, sendMessage, setMessages, status, error } = useChat<BuddhaMessage>({
-    messages: load(SAVED.conversation, []),
+  const { messages, sendMessage, setMessages, status, error, stop, regenerate } = useChat<BuddhaMessage>({
+    messages: load(SAVED, []),
     transport: new DefaultChatTransport({ api: `${API}/api/chat` }),
   });
   const busy = status === "submitted" || status === "streaming";
+  // a conversation saved from an earlier visit shows at once; only new messages move
+  const [saved] = useState(() => new Set(messages.map((m) => m.id)));
+  const last = messages.at(-1);
+  // the agent holds a reply until its first cited sentence, so the first words can take a while
+  const waiting = busy && !(last?.role === "assistant" && textOf(last).trim());
 
-  useEffect(() => save(SAVED.conversation, messages), [messages]);
-  useEffect(() => save(SAVED.lang, lang), [lang]);
-  useEffect(() => save(SAVED.thaiScript, thaiScript), [thaiScript]);
+  useEffect(() => save(SAVED, messages), [messages]);
 
   const send = (text: string) => {
     if (!text.trim() || busy) return;
-    sendMessage({ text }, { body: { lang } });
+    sendMessage({ text });
     setInput("");
   };
 
@@ -80,10 +85,33 @@ export function Chat() {
               </Suggestions>
             </ConversationEmptyState>
           ) : (
-            messages.map((m) => <Turn key={m.id} message={m} thaiScript={thaiScript} />)
+            messages.map((m, i) => (
+              <Turn
+                key={m.id}
+                message={m}
+                question={messages[i - 1]}
+                fresh={!saved.has(m.id)}
+                streaming={status === "streaming" && m === last}
+                waiting={waiting && m === last}
+              />
+            ))
           )}
-          {status === "submitted" && <p className="text-sm text-muted-foreground">Searching the canon…</p>}
-          {error && <p className="text-sm text-destructive">The reply didn’t arrive. Check that the agent is running and try again.</p>}
+          {waiting && last?.role === "user" && (
+            <Message from="assistant" className={ENTER}>
+              <MessageContent>
+                <Pending thai={THAI.test(textOf(last))} />
+              </MessageContent>
+            </Message>
+          )}
+          {error && (
+            <div role="alert" className={`flex flex-wrap items-center gap-3 text-sm text-destructive ${ENTER}`}>
+              The reply didn’t arrive.
+              <Button variant="outline" size="sm" onClick={() => regenerate()}>
+                <RotateCcwIcon />
+                Try again
+              </Button>
+            </div>
+          )}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
@@ -102,52 +130,38 @@ export function Chat() {
               if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 send(input);
-              }
+              } else if (e.key === "Escape" && busy) stop();
             }}
-            placeholder="Ask in English or Thai…"
+            placeholder="Ask in English or Thai, or ask for the Pali…"
             maxLength={2000}
             aria-label="Your message"
+            autoFocus
           />
-          <InputGroupAddon align="block-end" className="flex-wrap justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1">
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                size="sm"
-                value={lang}
-                onValueChange={(v) => v && setLang(v as ReplyLang)}
-                aria-label="Reply language"
-              >
-                {REPLY_LANGS.map(([value, label]) => (
-                  <ToggleGroupItem key={value} value={value}>
-                    {label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-              <Toggle variant="outline" size="sm" pressed={thaiScript} onPressedChange={setThaiScript} aria-label="Show Pali in Thai script">
-                อักษรไทย
-              </Toggle>
-            </div>
-            <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <InputGroupButton
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={busy || messages.length === 0}
-                    onClick={() => setMessages([])}
-                    aria-label="New conversation"
-                  >
-                    <SquarePenIcon />
-                  </InputGroupButton>
-                </TooltipTrigger>
-                <TooltipContent>New conversation</TooltipContent>
-              </Tooltip>
-              <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={busy || !input.trim()} aria-label="Send">
+          <InputGroupAddon align="block-end" className="justify-end gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InputGroupButton
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={busy || messages.length === 0}
+                  onClick={() => setMessages([])}
+                  aria-label="New conversation"
+                >
+                  <SquarePenIcon />
+                </InputGroupButton>
+              </TooltipTrigger>
+              <TooltipContent>New conversation</TooltipContent>
+            </Tooltip>
+            {busy ? (
+              <InputGroupButton type="button" variant="default" size="icon-sm" onClick={() => stop()} aria-label="Stop">
+                <SquareIcon className="size-3 fill-current" />
+              </InputGroupButton>
+            ) : (
+              <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={!input.trim()} aria-label="Send">
                 <ArrowUpIcon />
               </InputGroupButton>
-            </div>
+            )}
           </InputGroupAddon>
         </InputGroup>
       </form>
@@ -158,11 +172,21 @@ export function Chat() {
   );
 }
 
-function Turn({ message, thaiScript }: { message: BuddhaMessage; thaiScript: boolean }) {
-  const text = message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+const textOf = (m?: BuddhaMessage) => (m?.parts ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");
+
+interface TurnProps {
+  message: BuddhaMessage;
+  question?: BuddhaMessage; // the message this one answers
+  fresh: boolean; // sent in this visit, so it moves in
+  streaming: boolean; // its words are arriving
+  waiting: boolean; // its first words haven't arrived yet
+}
+
+function Turn({ message, question, fresh, streaming, waiting }: TurnProps) {
+  const text = textOf(message);
   if (message.role === "user") {
     return (
-      <Message from="user">
+      <Message from="user" className={fresh ? `${ENTER} slide-in-from-bottom-2` : undefined}>
         <MessageContent>{text}</MessageContent>
       </Message>
     );
@@ -171,6 +195,9 @@ function Turn({ message, thaiScript }: { message: BuddhaMessage; thaiScript: boo
   const notice = message.parts.find((p) => p.type === "data-notice")?.data;
   const crisis = message.parts.find((p) => p.type === "data-crisis")?.data;
   const pali = message.parts.some((p) => p.type === "data-pali"); // Pali mode: the text is the canon's own words
+  const thaiScript = THAI.test(text) || THAI.test(textOf(question));
+  if (!text.trim() && !waiting && !cards.length && !crisis) return null; // stopped before its first words
+  const enter = fresh ? ENTER : undefined;
   return (
     <Message from="assistant">
       <MessageContent className="w-full">
@@ -179,22 +206,37 @@ function Turn({ message, thaiScript }: { message: BuddhaMessage; thaiScript: boo
             {notice}
           </Badge>
         )}
-        <div lang={pali ? "pi" : undefined}>
-          <MessageResponse components={{ a: ReplyLink }}>
-            {stripCitations(pali && thaiScript ? quotesToThaiScript(text) : text)}
-          </MessageResponse>
-        </div>
-        {crisis && <Hotlines crisis={crisis} />}
-        <SourceCards cards={cards} thaiScript={thaiScript} />
+        {waiting ? (
+          // a crisis turn shows its hotlines at once and searches nothing, so its dot has no words
+          <Pending thai={thaiScript} quiet={!!crisis} />
+        ) : (
+          <div lang={pali ? "pi" : undefined}>
+            <MessageResponse components={{ a: ReplyLink }} animated={WORDS} isAnimating={streaming}>
+              {stripCitations(pali && thaiScript ? quotesToThaiScript(text) : text)}
+            </MessageResponse>
+          </div>
+        )}
+        {crisis && <Hotlines crisis={crisis} className={enter} />}
+        <SourceCards cards={cards} thaiScript={thaiScript} className={enter} />
       </MessageContent>
     </Message>
   );
 }
 
-// The numbers come from policy.yaml through the agent, never from the model (PRD §6).
-function Hotlines({ crisis }: { crisis: Crisis }) {
+// Holds a reply's place until its first words arrive.
+function Pending({ thai, quiet = false }: { thai: boolean; quiet?: boolean }) {
   return (
-    <Alert>
+    <p role="status" className="flex h-6 items-center gap-2.5 text-sm text-muted-foreground">
+      <span aria-hidden className="size-2 animate-breathe rounded-full bg-primary" />
+      {quiet ? <span className="sr-only">Replying</span> : thai ? "กำลังค้นพระสูตร…" : "Searching the canon…"}
+    </p>
+  );
+}
+
+// The numbers come from policy.yaml through the agent, never from the model (PRD §6).
+function Hotlines({ crisis, className }: { crisis: Crisis; className?: string }) {
+  return (
+    <Alert className={className}>
       <PhoneIcon />
       <AlertTitle>{crisis.title}</AlertTitle>
       <AlertDescription>

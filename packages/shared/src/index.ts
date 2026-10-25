@@ -12,10 +12,6 @@ export interface AgentHealth {
 /** Source languages: Pali, Thai, English. */
 export type Lang = "pi" | "th" | "en";
 
-/** The reply language the browser asks for: auto-detected Thai or English, either forced, or
- * Pali mode, where the reply is the canon's own words (PRD §5.1). */
-export type ReplyLang = "auto" | "en" | "th" | "pi";
-
 /** One cited paragraph, filled verbatim from the database by the Go core (POST /v1/cards). */
 export interface Card {
   id: string; // the cited paragraph: "sn56.11#en5"

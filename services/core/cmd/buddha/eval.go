@@ -29,7 +29,6 @@ import (
 type evalCase struct {
 	ID     string   `json:"id"`
 	Turns  []string `json:"turns"` // the person's messages; earlier ones are replied to first
-	Lang   string   `json:"lang"`  // the reply-language switch: auto (default), en, th or pi
 	Expect struct {
 		Route    string   `json:"route"`
 		Sutta    string   `json:"sutta"`     // should be in the first search's top 8
@@ -78,8 +77,9 @@ type evalResult struct {
 var crisisNumbers = []string{"1323", "1669", "1300", "1387", "191"}
 
 var (
-	dontKnow = []string{"The discourses I can search don't cover this.", "พระสูตรที่เราค้นได้ไม่ได้กล่าวถึงเรื่องนี้"}
-	noQuote  = []string{"The texts I can search don't contain those words.", "พระสูตรที่เราค้นได้ไม่มีถ้อยคำนั้น"}
+	// the don't-know line's start: the model may finish it its own way ("…about the smartphone itself")
+	dontKnow = []string{"I don't recall teaching about", "เรานึกไม่ออกว่าเคยแสดงธรรม"}
+	noQuote  = []string{"I don't recall saying those words.", "เรานึกไม่ออกว่าเคยกล่าวถ้อยคำนั้น"}
 	citeMark = regexp.MustCompile(`\[\[cite:[^\]\s]+\]\]`)
 	// every quoted span: fabricated skips the short ones, but matching them keeps a closing mark
 	// from pairing with the next opening one
@@ -166,7 +166,7 @@ func askAgent(ctx context.Context, agent string, c evalCase) (evalReply, error) 
 	var r evalReply
 	for i, turn := range c.Turns {
 		history = append(history, uiMessage(fmt.Sprintf("u%d", i), "user", turn))
-		body, _ := json.Marshal(map[string]any{"messages": history, "lang": c.Lang, "eval": true})
+		body, _ := json.Marshal(map[string]any{"messages": history, "eval": true})
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, agent+"/api/chat", bytes.NewReader(body))
 		if err != nil {
 			return r, err

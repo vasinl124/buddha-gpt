@@ -1,8 +1,27 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "streamdown/styles.css";
 
 @custom-variant dark (&:is(.dark *));
+
+/* motion: short, state-driven, decelerating */
+@theme {
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  /* the dot that holds a reply's place: a slow breath, not a spinner */
+  --animate-breathe: breathe 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  @keyframes breathe {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scale(0.75);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -129,5 +148,17 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* everything appears at once, including a reply's words */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
 }
