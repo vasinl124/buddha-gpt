@@ -19,7 +19,7 @@ Each part exists to show one skill:
 
 | Skill | Where it shows |
 |---|---|
-| RAG over a messy, real corpus | Pali XML, Thai PDFs with broken glyphs, an EPUB and 100-year-old scanned translations, joined by sutta ID (§8) |
+| RAG over a messy, real corpus | Pali XML, Thai PDFs with broken glyphs, a thousand translation pages and 100-year-old scanned translations, joined by sutta ID (§8) |
 | Multilingual retrieval | Thai and English in one vector space; Pali by lexical search; Thai search without word spaces (§8.5) |
 | An agent with tools | AI SDK tool loop with `search_canon` and `get_passage`, capped at 4 steps (§9) |
 | Grounding you can check | The model picks passages; code quotes them (§6) |
@@ -117,7 +117,7 @@ Precedence: crisis > decline > redirect > chat > don't know > answer.
 | 4 | Agent → Retrieval API | HTTP/JSON: `POST /v1/search`, `GET /v1/passages/{id}` | 7890 | the user | A query and filters in; passages with IDs out |
 | 5 | Retrieval API → Postgres | SQL (pgx) | 5432 | the user | Hybrid search: pgvector plus trigrams |
 | 6 | Retrieval API → OpenRouter | HTTPS | 443 | the user | Embeds the query (`baai/bge-m3`) |
-| 7 | `buddha sync` → Sources | git clone and HTTPS downloads | 443 | nobody (batch) | VRI XML; Thai PDFs, 5 seconds apart as the site's robots.txt asks; Ṭhānissaro EPUB; public-domain scans |
+| 7 | `buddha sync` → Sources | git clone and HTTPS downloads | 443 | nobody (batch) | VRI XML; Thai PDFs, 5 seconds apart as the site's robots.txt asks; Ṭhānissaro's sutta pages, 4 at a time; public-domain scans |
 | 8 | `buddha sync` → OpenRouter | HTTPS | 443 | nobody | Embeds new or changed paragraphs |
 | 9 | `buddha sync` → Postgres | SQL | 5432 | nobody | Upserts paragraphs by ID and hash, and their vectors |
 | 10 | `buddha eval` → Agent | HTTP POST `/api/chat` in eval mode (JSON, not SSE) | 7891 | nobody (CI) | A case in; the reply, the cards and a debug block out. GitHub Actions runs it on PRs that touch the prompts, the policy, the agent or retrieval |
@@ -175,6 +175,7 @@ buddha-gpt/
 |---|---|
 | `pnpm dev` | `concurrently`: Go (`go run ./cmd/buddha serve`), the agent and the web app |
 | `pnpm sync` | `buddha sync`: download, clean, embed and load the texts |
+| `pnpm search "…"` | `buddha search`: the top passages for a query, from the command line |
 | `pnpm eval` | `buddha eval` against the running agent |
 | `pnpm test` | Every package's TypeScript tests, then `go test ./...` |
 | `pnpm lint` | ESLint and type checks, then `go vet ./...` |
@@ -191,6 +192,7 @@ buddha-gpt/
 | `NEXT_PUBLIC_API_URL` | web: the agent's URL | `http://localhost:7891` |
 | `CORS_ORIGINS` | agent | `http://localhost:5005` |
 | `EVAL_MODE` | agent: eval mode (JSON and the debug block) only answers when this is `1` | unset |
+| `EMBED_MODEL`, `EMBED_BASE_URL` | Go: the embedding model and endpoint. Any OpenAI-compatible endpoint works, so a local Ollama can stand in during development | `baai/bge-m3`, OpenRouter |
 
 ### 7.3 Stack
 
@@ -216,7 +218,7 @@ buddha-gpt/
 |---|---|---|---|---|
 | Pali | VRI's Chaṭṭha Saṅgāyana edition, `tipitaka-xml` on GitHub (the same text as tipitaka.org's PDFs) | Free for non-commercial use, with credit | XML, Roman and Thai script | All Pali |
 | Thai | Royal translation (ฉบับหลวง), 45 volumes, from thepathofpurity.com | No rights statement ⚠. First printed in 1957; this set is the Department of Religious Affairs' 1971 printing | Text PDFs, one per volume | All Thai |
-| English | Ṭhānissaro Bhikkhu, dhammatalks.org | CC BY-NC 4.0: free for non-commercial use, with credit. His site counts any sale as commercial | One EPUB | English wherever he translated the sutta |
+| English | Ṭhānissaro Bhikkhu, dhammatalks.org | CC BY-NC 4.0: free for non-commercial use, with credit. His site counts any sale as commercial | One page per sutta (about 1,100), downloaded 4 at a time; robots.txt allows `/suttas/` | English wherever he translated the sutta |
 | English | Public-domain translations, original printings: Rhys Davids, *Dialogues of the Buddha* (DN, 1899–1921); Chalmers, *Further Dialogues of the Buddha* (MN, 1926–27); *The Book of the Kindred Sayings* (SN, 1917–30) | Public domain: published in 1930 or earlier | archive.org scans with OCR text | English for the suttas Ṭhānissaro skipped |
 | — | `sc-data`, SuttaCentral's copy of the Thai, keyed by sutta ID | No licence ⚠ | git clone | Crosswalk only (§8.3); never indexed or shown |
 | — | SuttaCentral, 84000.org | — | Links | "Read the whole sutta" links; no text is fetched |
@@ -236,11 +238,13 @@ buddha-gpt/
 
   The archive.org copy's volume 1 is a duplicate of volume 2. thepathofpurity's volume 1 is a different file (3.1 MB against 2.5 MB), so it probably fixes that ⚠. Volume 1 is Vinaya, outside the MVP either way.
 - **Old scanned translations.** Strip running heads, page numbers and footnotes from the OCR text, rejoin hyphenated words, repair Pali diacritics, then split at sutta headings. Passages the old editions abridged ("…") stay as printed.
-- **Ṭhānissaro's EPUB.** Chapters are titled by sutta ("MN 10"), so it splits by code.
+- **Ṭhānissaro's pages.** Each page is one sutta and its file name gives the ID (`SN56_11.html` → `sn56.11`). His introduction above the first "* * *", his footnote markers and his notes aren't his translation of the text, so they're dropped.
+- **Summary verses.** VRI ends many vaggas with an *uddāna*, a verse listing the sutta names ("Tassuddānaṃ –"). It's an editor's aid, not text, so it's dropped.
 
 ### 8.3 IDs and alignment
 
 - Everything joins on SuttaCentral-style sutta IDs (`mn10`). They are standard references, not text.
+- **The crosswalk.** VRI and SuttaCentral group the repetitive (peyyāla) suttas differently in a few saṃyuttas and nipātas, and AN 1–2 number their suttas as paragraphs. A vendored list of SuttaCentral's sutta IDs (the file names in `bilara-data`, no text) maps each paragraph to the SuttaCentral sutta whose range holds its number, so every ID links to a real page. On the Pali side 3,398 of 3,399 IDs match; the one left over (`sn45.181`) is reported by `buddha sync`.
 - Pali and English join by sutta heading. The Thai is organised by volume and ข้อ, so `buddha sync` builds a crosswalk into `suttas`:
   - DN and MN: by counting sutta headings in canonical order (volume 12 holds MN 1–50);
   - SN and AN: by matching against sc-data's ID-keyed copy of the same translation;

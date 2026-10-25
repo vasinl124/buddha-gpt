@@ -4,14 +4,20 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/vasinl124/buddha-gpt/services/core/internal/canon"
+	"github.com/vasinl124/buddha-gpt/services/core/internal/embed"
+	"github.com/vasinl124/buddha-gpt/services/core/internal/fetch"
+	"github.com/vasinl124/buddha-gpt/services/core/internal/store"
 )
 
 const addr = ":7890"
@@ -19,33 +25,69 @@ const addr = ":7890"
 func main() {
 	loadEnvFile("../../.env") // the repo-root .env; the root scripts run this from services/core
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: buddha <serve|sync|eval>")
+		fmt.Fprintln(os.Stderr, "usage: buddha <serve|sync|search|eval>")
 		os.Exit(2)
 	}
+	ctx := context.Background()
+	var err error
 	switch os.Args[1] {
 	case "serve":
-		serve()
-	case "sync", "eval":
-		fmt.Fprintf(os.Stderr, "buddha %s: not built yet (see the plan in docs/PRD.md §12)\n", os.Args[1])
+		err = serve(ctx)
+	case "sync":
+		err = runSync(ctx)
+	case "search":
+		err = runSearch(ctx, os.Args[2:])
+	case "eval":
+		fmt.Fprintln(os.Stderr, "buddha eval: not built yet (see the plan in docs/PRD.md §12)")
 		os.Exit(1)
 	default:
 		fmt.Fprintf(os.Stderr, "buddha: unknown command %q\n", os.Args[1])
 		os.Exit(2)
 	}
-}
-
-func serve() {
-	pool, err := pgxpool.New(context.Background(), env("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/buddha_gpt"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer pool.Close()
-	log.Printf("Retrieval API listening on %s", addr)
-	log.Fatal(http.ListenAndServe(addr, routes(pool.Ping)))
 }
 
-// routes takes the database check as a function so tests can stub it.
-func routes(pingDB func(context.Context) error) http.Handler {
+func dbURL() string {
+	return env("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/buddha_gpt")
+}
+
+func serve(ctx context.Context) error {
+	st, err := store.Open(ctx, dbURL())
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	emb := embed.FromEnv()
+	if !emb.Ready() {
+		log.Print("no OPENROUTER_API_KEY: search is lexical only")
+	}
+	log.Printf("Retrieval API listening on %s", addr)
+	return http.ListenAndServe(addr, routes(st.Pool.Ping, searcher(st, emb)))
+}
+
+type searchFunc func(ctx context.Context, query string, k int) (store.Result, error)
+
+// searcher runs hybrid search, or lexical only when no embedding model is configured.
+func searcher(st *store.Store, emb *embed.Client) searchFunc {
+	var e store.Embedder
+	if emb.Ready() {
+		e = func(ctx context.Context, q string) ([]float32, error) {
+			v, err := emb.Embed(ctx, []string{q})
+			if err != nil {
+				return nil, err
+			}
+			return v[0], nil
+		}
+	}
+	return func(ctx context.Context, q string, k int) (store.Result, error) {
+		return st.Search(ctx, q, k, emb.Model, e)
+	}
+}
+
+// routes takes its dependencies as functions so tests can stub them.
+func routes(pingDB func(context.Context) error, search searchFunc) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), time.Second)
@@ -54,11 +96,175 @@ func routes(pingDB func(context.Context) error) http.Handler {
 		if err := pingDB(ctx); err != nil {
 			db, code = "down", http.StatusServiceUnavailable
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(code)
-		json.NewEncoder(w).Encode(map[string]any{"ok": code == http.StatusOK, "db": db})
+		writeJSON(w, code, map[string]any{"ok": code == http.StatusOK, "db": db})
+	})
+	mux.HandleFunc("POST /v1/search", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Query string `json:"query"`
+			K     int    `json:"k"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || strings.TrimSpace(req.Query) == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "send {\"query\": \"…\"}"})
+			return
+		}
+		if req.K <= 0 || req.K > 50 {
+			req.K = 8 // the number the model sees (PRD §8.5)
+		}
+		res, err := search(r.Context(), req.Query, req.K)
+		if err != nil {
+			log.Printf("search: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "search failed"})
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
 	})
 	return mux
+}
+
+func writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(v)
+}
+
+// runSync downloads the sources, parses them, loads Postgres and embeds what's new.
+func runSync(ctx context.Context) error {
+	st, err := store.Open(ctx, dbURL())
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	data := env("DATA_DIR", "../../data")
+
+	// Pali: VRI's Chaṭṭha Saṅgāyana XML
+	var files []string
+	for _, b := range canon.VRIBooks {
+		files = append(files, b.File)
+	}
+	dir, err := fetch.VRI(ctx, data, files)
+	if err != nil {
+		return err
+	}
+	var suttas []canon.Sutta
+	var paras []canon.Para
+	for _, b := range canon.VRIBooks {
+		s, p, err := canon.ReadVRIFile(filepath.Join(dir, b.File), b)
+		if err != nil {
+			return err
+		}
+		suttas, paras = append(suttas, s...), append(paras, p...)
+	}
+	if err := load(ctx, st, "vri", suttas, paras); err != nil {
+		return err
+	}
+
+	// English: Ṭhānissaro Bhikkhu's translations from dhammatalks.org
+	pages, err := fetch.Thanissaro(ctx, data)
+	if err != nil {
+		return err
+	}
+	paths := make([]string, 0, len(pages))
+	for p := range pages {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	suttas, paras = nil, nil
+	for _, path := range paths {
+		f, err := os.Open(pages[path])
+		if err != nil {
+			return err
+		}
+		s, p, err := canon.ParseThanissaro(f, canon.ThanissaroID(path))
+		f.Close()
+		if err != nil {
+			log.Printf("skip %s: %v", path, err)
+			continue
+		}
+		suttas, paras = append(suttas, s), append(paras, p...)
+	}
+	if err := load(ctx, st, "thanissaro", suttas, paras); err != nil {
+		return err
+	}
+	return embedMissing(ctx, st, embed.FromEnv())
+}
+
+func load(ctx context.Context, st *store.Store, source string, suttas []canon.Sutta, paras []canon.Para) error {
+	suttas, paras, unmatched := canon.Normalize(suttas, paras)
+	l, err := st.Load(ctx, source, suttas, paras)
+	if err != nil {
+		return fmt.Errorf("load %s: %w", source, err)
+	}
+	log.Printf("%s: %d suttas, %d paragraphs (%d new or changed, %d removed)", source, len(suttas), l.Paras, l.Changed, l.Removed)
+	if len(unmatched) > 0 {
+		sort.Strings(unmatched)
+		log.Printf("%s: %d IDs have no SuttaCentral match, kept as is: %s", source, len(unmatched), strings.Join(unmatched, " "))
+	}
+	return nil
+}
+
+// embedMissing embeds English paragraphs that have no vector for the configured model. Pali
+// isn't embedded: models handle it poorly, so it's searched lexically (PRD §8.4).
+func embedMissing(ctx context.Context, st *store.Store, emb *embed.Client) error {
+	if !emb.Ready() {
+		log.Print("no OPENROUTER_API_KEY: skipping embeddings, so search stays lexical until you add one")
+		return nil
+	}
+	langs := []string{"en"}
+	done := 0
+	for {
+		batch, err := st.MissingVectors(ctx, emb.Model, langs, 64)
+		if err != nil || len(batch) == 0 {
+			if err == nil {
+				have, total, _ := st.CountVectors(ctx, emb.Model, langs)
+				log.Printf("embeddings (%s): %d of %d paragraphs", emb.Model, have, total)
+			}
+			return err
+		}
+		texts, ids := make([]string, len(batch)), make([]string, len(batch))
+		for i, p := range batch {
+			texts[i], ids[i] = p.Text, p.ID
+		}
+		vecs, err := emb.Embed(ctx, texts)
+		if err != nil {
+			return err
+		}
+		if err := st.SaveVectors(ctx, emb.Model, ids, vecs); err != nil {
+			return err
+		}
+		if done += len(batch); done%1024 < len(batch) {
+			log.Printf("embedded %d paragraphs…", done)
+		}
+	}
+}
+
+// runSearch is the Phase 1 demo: buddha search "four noble truths".
+func runSearch(ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("search", flag.ExitOnError)
+	k := fs.Int("k", 8, "number of results")
+	fs.Parse(args)
+	query := strings.Join(fs.Args(), " ")
+	if query == "" {
+		return fmt.Errorf(`usage: buddha search [-k 8] "four noble truths"`)
+	}
+	st, err := store.Open(ctx, dbURL())
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	emb := embed.FromEnv()
+	res, err := searcher(st, emb)(ctx, query, *k)
+	if err != nil {
+		return err
+	}
+	for i, h := range res.Hits {
+		fmt.Printf("%2d. %-16s %s  %.4f  %.100s\n", i+1, h.SuttaID, h.Lang, h.Score, strings.ReplaceAll(h.Text, "\n", " / "))
+	}
+	mode := "hybrid, " + emb.Model
+	if !emb.Ready() {
+		mode = "lexical only"
+	}
+	fmt.Printf("(%s; top cosine %.3f, top lexical %.3f)\n", mode, res.TopCosine, res.TopLexical)
+	return nil
 }
 
 // loadEnvFile sets KEY=VALUE lines from path without overriding variables that are already set.

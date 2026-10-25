@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vasinl124/buddha-gpt/services/core/internal/store"
 )
 
 func TestLoadEnvFile(t *testing.T) {
@@ -30,6 +32,28 @@ func TestLoadEnvFile(t *testing.T) {
 	}
 }
 
+func TestSearchRoute(t *testing.T) {
+	var gotQuery string
+	var gotK int
+	search := func(_ context.Context, q string, k int) (store.Result, error) {
+		gotQuery, gotK = q, k
+		return store.Result{Hits: []store.Hit{{ID: "sn56.11#en5", SuttaID: "sn56.11", Lang: "en"}}}, nil
+	}
+	h := routes(nil, search)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("POST", "/v1/search", strings.NewReader(`{"query":"four noble truths"}`)))
+	if rec.Code != http.StatusOK || gotQuery != "four noble truths" || gotK != 8 || !strings.Contains(rec.Body.String(), `"sutta_id":"sn56.11"`) {
+		t.Fatalf("got %d %s (query %q, k %d)", rec.Code, rec.Body, gotQuery, gotK)
+	}
+
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("POST", "/v1/search", strings.NewReader(`{"query":"  "}`)))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("empty query: got %d", rec.Code)
+	}
+}
+
 func TestHealthz(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -42,7 +66,7 @@ func TestHealthz(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			routes(func(context.Context) error { return tc.ping }).ServeHTTP(rec, httptest.NewRequest("GET", "/healthz", nil))
+			routes(func(context.Context) error { return tc.ping }, nil).ServeHTTP(rec, httptest.NewRequest("GET", "/healthz", nil))
 			if got := strings.TrimSpace(rec.Body.String()); rec.Code != tc.code || got != tc.body {
 				t.Fatalf("got %d %s, want %d %s", rec.Code, got, tc.code, tc.body)
 			}
