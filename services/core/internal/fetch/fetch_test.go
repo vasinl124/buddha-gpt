@@ -51,3 +51,44 @@ func TestThanissaro(t *testing.T) {
 		t.Errorf("requests = %v", hits)
 	}
 }
+
+func TestThai(t *testing.T) {
+	hits := map[string]int{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits[r.URL.Path]++
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/home/"):
+			w.Write([]byte(`<a href="/app/download/7450763486/Tri45_12+%E0%B8%A1.pdf?t=1">12</a>
+				<a href="/app/download/7312421286/TriPali_12+x.pdf?t=1">pali</a>`))
+		case strings.HasPrefix(r.URL.Path, "/app/download/7450763486/Tri45_12"):
+			w.Write([]byte("%PDF-1.4"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	thaiSite, thaiDelay = srv.URL, 0
+
+	dir := t.TempDir()
+	for run := 1; run <= 2; run++ {
+		vols, err := Thai(context.Background(), dir, []int{12})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if data, _ := os.ReadFile(vols[12]); string(data) != "%PDF-1.4" {
+			t.Fatalf("run %d: saved %q", run, data)
+		}
+	}
+	if _, err := Thai(context.Background(), dir, []int{13}); err == nil {
+		t.Error("a volume the page doesn't link should fail the sync")
+	}
+	pdfs := 0
+	for path, n := range hits {
+		if strings.HasPrefix(path, "/app/") {
+			pdfs += n
+		}
+	}
+	if pdfs != 1 {
+		t.Errorf("the PDF was requested %d times, want once: %v", pdfs, hits)
+	}
+}

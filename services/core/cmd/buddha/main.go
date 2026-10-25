@@ -4,11 +4,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -246,7 +248,52 @@ func runSync(ctx context.Context) error {
 	if err := load(ctx, st, "thanissaro", suttas, paras); err != nil {
 		return err
 	}
+
+	// Thai: the Royal translation, one PDF per volume, with each sutta's start found by its
+	// opening words in sc-data's ID-keyed copy
+	var vols []int
+	for _, v := range canon.ThaiVolumes {
+		vols = append(vols, v.N)
+	}
+	pdfs, err := fetch.Thai(ctx, data, vols)
+	if err != nil {
+		return err
+	}
+	sc, err := fetch.SCData(ctx, data)
+	if err != nil {
+		return err
+	}
+	suttas, paras = nil, nil
+	for _, v := range canon.ThaiVolumes {
+		text, err := pdfText(ctx, pdfs[v.N])
+		if err != nil {
+			return err
+		}
+		refs, err := canon.ThaiRefs(sc, v)
+		if err != nil {
+			return err
+		}
+		s, p, left := canon.ParseThai(text, refs)
+		log.Printf("thai volume %d: %d of %d suttas, %d paragraphs", v.N, len(s), len(refs), len(p))
+		if len(left) > 0 {
+			log.Printf("thai volume %d: left out %s (opening not found, or the sutta after it wasn't)", v.N, strings.Join(left, " "))
+		}
+		suttas, paras = append(suttas, s...), append(paras, p...)
+	}
+	if err := load(ctx, st, "royal", suttas, paras); err != nil {
+		return err
+	}
 	return embedMissing(ctx, st, embed.FromEnv())
+}
+
+// pdfText reads a PDF's text with pdftotext (poppler), which maps Thai through the PDF's own
+// character maps.
+func pdfText(ctx context.Context, path string) (string, error) {
+	out, err := exec.CommandContext(ctx, "pdftotext", "-enc", "UTF-8", path, "-").Output()
+	if errors.Is(err, exec.ErrNotFound) {
+		return "", errors.New("pdftotext not found: install poppler (brew install poppler, or apt install poppler-utils)")
+	}
+	return string(out), err
 }
 
 func load(ctx context.Context, st *store.Store, source string, suttas []canon.Sutta, paras []canon.Para) error {
