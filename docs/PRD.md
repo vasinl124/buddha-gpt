@@ -186,7 +186,7 @@ buddha-gpt/
 | Variable | Used by | Local default |
 |---|---|---|
 | `OPENROUTER_API_KEY` | agent, Go | — |
-| `AGENT_MODEL` | agent: the reply model on OpenRouter. With no `OPENROUTER_API_KEY`, a mock model answers, so the whole turn can be tried without a key | `anthropic/claude-opus-5.5` |
+| `AGENT_MODEL` | agent: the reply model on OpenRouter. With no `OPENROUTER_API_KEY`, a mock model answers, so the whole turn can be tried without a key | `anthropic/claude-haiku-5.5` |
 | `DATABASE_URL` | Go | `postgres://postgres:postgres@localhost:5432/buddha_gpt` |
 | `POSTGRES_PORT` | Docker Compose: the host port for Postgres, if 5432 is taken | `5432` |
 | `RETRIEVAL_URL` | agent | `http://localhost:7890` |
@@ -203,13 +203,14 @@ buddha-gpt/
 | Agent | Node 22, Express 5, AI SDK 7, `@openrouter/ai-sdk-provider` 3.x | `streamText` → `pipeUIMessageStreamToResponse(res)`; `stopWhen: isStepCount(4)`; `prepareStep` sets `activeTools: []` on the last step; the guard uses `Output.object` |
 | Core | Go 1.26: `net/http`, pgx, pgvector-go | One binary, three commands |
 | Database | Postgres 18, pgvector 0.8 (HNSW), `pg_trgm` | Canon and vectors in one database |
-| Models | Through OpenRouter | Reply and guard: Claude Opus 5.5 at low effort to start, with Claude Haiku 5.5 as the cheaper candidate the evals must approve. Judge: a different model family. Embeddings: `baai/bge-m3` |
+| Models | Through OpenRouter | Reply and guard: Claude Haiku 5.5, at a fortieth of Opus 5.5's price. It passes every eval gate except Recall@8, which retrieval tuning still has to lift. Another model goes in through `AGENT_MODEL` once it passes the same eval. Judge: a different model family. Embeddings: `baai/bge-m3` |
 | CI | GitHub Actions | Lint, tests, eval gate |
 | Monorepo | pnpm 10 workspace + `concurrently` 10 | The house layout, with no Turborepo. Go isn't a pnpm package, so root scripts call it directly |
 
 - Set `provider.require_parameters: true` wherever you send tools or a schema. Otherwise OpenRouter may route to a provider that ignores them.
 - A `models: [...]` list gives automatic fallback, and every response reports `usage.cost`.
 - Claude Opus 5.5 and Sonnet 5.5 reject a forced `tool_choice`, so code runs the first search itself and the model only decides on follow-ups.
+- Haiku 5.5 thinks by default. The guard turns reasoning off, or the thinking spends its output cap and cuts the JSON short.
 
 ## 8. Data and RAG
 
@@ -325,7 +326,7 @@ There are no chat tables: history stays in the browser.
 - The judge is a different model family from the agent (`JUDGE_MODEL`, `openai/gpt-5-mini` by default) and scores each answer's faithfulness to its cards. Calibrate it against 20 replies you've labelled yourself before trusting it.
 - Each case says what it expects: the route, the sutta for Recall@8, the reply language, a don't-know reply, the verdict on a quote, or words that mustn't appear. `buddha eval` checks the hotline numbers on its own, not from `policy.yaml`, so a policy edit that drops one fails the gate.
 - Without a key the agent's mock answers, and the report says so: it checks the harness and the code paths. Citation validity and fabrication pass even then, because code enforces them; recall, routes and declines need the real guard and embeddings.
-- **CI:** GitHub Actions runs the suite on PRs that touch `prompts/`, `policy.yaml`, the agent or retrieval, and comments the summary on the PR. The built database snapshot lives in private storage fetched with a secret, never as a public file. Forks don't get the secret, so the gate runs on your own branches. One run costs a few dollars.
+- **CI:** GitHub Actions runs the suite on PRs that touch `prompts/`, `policy.yaml`, the agent or retrieval, and comments the summary on the PR. The built database snapshot lives in private storage fetched with a secret, never as a public file. Forks don't get the secret, so the gate runs on your own branches. One run costs under ten cents with Haiku 5.5 and the default judge.
 
 ## 11. Open source and privacy
 
