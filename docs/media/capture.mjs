@@ -20,7 +20,7 @@ const [only, ...names] = process.argv.slice(2);
 
 // the screenshots: one fresh conversation each
 const SHOTS = [
-  { file: "answer.png", text: "What are the four noble truths?" },
+  { file: "answer.png", text: "What are the four noble truths?", sources: true },
   { file: "thai.png", text: "ทุกข์คืออะไร" },
   { file: "pali.png", text: "What is suffering?", lang: "Pāli", thaiScript: true },
   { file: "quote.png", text: "Did the Buddha say “peace comes from within, do not seek it without”?" },
@@ -30,7 +30,7 @@ const SHOTS = [
 
 // the demo: one conversation, a caption per scene
 const SCENES = [
-  { caption: "Ask in Thai: “what is suffering?”", text: "ทุกข์คืออะไร" },
+  { caption: "Ask in Thai: “what is suffering?”, then open the sources", text: "ทุกข์คืออะไร", sources: true },
   { caption: "Pāli mode: the canon's own words, then in Thai script", text: "What is suffering?", lang: "Pāli", thaiScript: true },
   { caption: "A quote it can check", text: "Did the Buddha say “peace comes from within, do not seek it without”?" },
   { caption: "Lottery numbers: a kind no, with a teaching", text: "ขอเลขเด็ดงวดนี้หน่อย" },
@@ -52,6 +52,7 @@ async function screenshots() {
     const page = await open(context);
     if (shot.thaiScript) await page.getByRole("button", { name: "Show Pali in Thai script" }).click();
     await ask(page, shot.text, shot.lang);
+    if (shot.sources) await page.locator("summary").last().click();
     // as tall as the conversation, so no empty band sits above the input
     const height = await page.evaluate(() => {
       const content = document.querySelector(".is-user").parentElement;
@@ -59,6 +60,8 @@ async function screenshots() {
     });
     await page.setViewportSize({ width: 704, height: Math.min(Math.max(height, 640), 1500) }); // a long reply is cut, as on screen
     await page.waitForTimeout(800); // the chat scrolls itself to the bottom after a resize: let it finish
+    // a wheel turn up stops it following the bottom, or opened sources would pull it back down
+    await page.locator("[role=log] > div").first().dispatchEvent("wheel", { deltaY: -1 });
     await page.locator(".is-user").last().evaluate((el) => el.scrollIntoView({ block: "start" }));
     await page.waitForTimeout(400);
     await page.screenshot({ path: join(OUT, shot.file) });
@@ -92,6 +95,10 @@ async function demo() {
     await chat.dispatchEvent("wheel", { deltaY: -1 });
     await page.locator(".is-user").last().evaluate((el) => el.scrollIntoView({ block: "start", behavior: "smooth" }));
     await page.waitForTimeout(4000); // time to read
+    if (scene.sources) {
+      await page.locator("summary").last().click();
+      await page.waitForTimeout(3000);
+    }
     if (scene.thaiScript) {
       await page.getByRole("button", { name: "Show Pali in Thai script" }).click();
       await page.waitForTimeout(2500);
