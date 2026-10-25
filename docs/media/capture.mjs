@@ -4,9 +4,10 @@
 // Playwright drives the installed Google Chrome and Chrome's own screencast records the demo, so
 // nothing is downloaded: the system ffmpeg turns the frames into the video.
 //
-//   pnpm media             screenshots and the demo
-//   pnpm media shots       screenshots only
-//   pnpm media demo        the demo only
+//   pnpm media                  screenshots and the demo
+//   pnpm media shots            screenshots only
+//   pnpm media shots answer     only the named screenshots
+//   pnpm media demo             the demo only
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -15,13 +16,14 @@ import { chromium } from "playwright";
 
 const APP = process.env.APP_URL || "http://localhost:5005";
 const OUT = new URL(".", import.meta.url).pathname;
-const only = process.argv[2];
+const [only, ...names] = process.argv.slice(2);
 
 // the screenshots: one fresh conversation each
 const SHOTS = [
   { file: "answer.png", text: "What are the four noble truths?" },
   { file: "thai.png", text: "ทุกข์คืออะไร" },
   { file: "pali.png", text: "What is suffering?", lang: "Pāli", thaiScript: true },
+  { file: "quote.png", text: "Did the Buddha say “peace comes from within, do not seek it without”?" },
   { file: "decline.png", text: "ขอเลขเด็ดงวดนี้หน่อย" },
   { file: "crisis.png", text: "I don't want to live anymore" },
 ];
@@ -44,8 +46,9 @@ try {
 }
 
 async function screenshots() {
-  const context = await browser.newContext({ viewport: { width: 900, height: 1200 }, deviceScaleFactor: 2 });
-  for (const shot of SHOTS) {
+  // the chat column is 672 px wide: frame it, not the empty page around it
+  const context = await browser.newContext({ viewport: { width: 704, height: 1200 }, deviceScaleFactor: 2 });
+  for (const shot of SHOTS.filter((s) => !names.length || names.includes(s.file.replace(".png", "")))) {
     const page = await open(context);
     if (shot.thaiScript) await page.getByRole("button", { name: "Show Pali in Thai script" }).click();
     await ask(page, shot.text, shot.lang);
@@ -54,7 +57,8 @@ async function screenshots() {
       const content = document.querySelector(".is-user").parentElement;
       return window.innerHeight - content.parentElement.clientHeight + content.scrollHeight + 8;
     });
-    await page.setViewportSize({ width: 900, height: Math.min(Math.max(height, 640), 2000) });
+    await page.setViewportSize({ width: 704, height: Math.min(Math.max(height, 640), 1500) }); // a long reply is cut, as on screen
+    await page.waitForTimeout(800); // the chat scrolls itself to the bottom after a resize: let it finish
     await page.locator(".is-user").last().evaluate((el) => el.scrollIntoView({ block: "start" }));
     await page.waitForTimeout(400);
     await page.screenshot({ path: join(OUT, shot.file) });
@@ -66,7 +70,7 @@ async function screenshots() {
 
 async function demo() {
   const dir = mkdtempSync(join(tmpdir(), "buddha-demo-"));
-  const context = await browser.newContext({ viewport: { width: 960, height: 860 }, deviceScaleFactor: 1.5 });
+  const context = await browser.newContext({ viewport: { width: 720, height: 900 } });
   const page = await open(context);
   const frames = await record(page, dir);
   // a caption bar above the app, which keeps its full height below it
@@ -92,10 +96,11 @@ async function demo() {
 
   const video = ["-f", "concat", "-safe", "0", "-i", list];
   ffmpeg([...video, "-vf", "fps=30,format=yuv420p", "-c:v", "libx264", "-crf", "26", "-preset", "slow", "-movflags", "+faststart", join(OUT, "demo.mp4")]);
-  // the GIF plays in the README: 10 fps, 720 wide, its own 128-colour palette
+  // the GIF plays in the README: at double speed (real replies take a while; the MP4 keeps real
+  // time), 8 fps, at its 720 px width, with its own 128-colour palette
   ffmpeg([
     ...video, "-vf",
-    "fps=10,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=5",
+    "setpts=PTS/2,fps=8,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=5",
     join(OUT, "demo.gif"),
   ]);
   rmSync(dir, { recursive: true });
@@ -113,7 +118,7 @@ async function record(page, dir) {
     frames.push({ file, at: metadata.timestamp });
     cdp.send("Page.screencastFrameAck", { sessionId }).catch(() => {});
   });
-  await cdp.send("Page.startScreencast", { format: "jpeg", quality: 90, maxWidth: 1440, maxHeight: 1290 });
+  await cdp.send("Page.startScreencast", { format: "jpeg", quality: 90, maxWidth: 720, maxHeight: 900 });
   return {
     async stop() {
       await cdp.send("Page.stopScreencast");
@@ -132,7 +137,8 @@ async function open(context) {
   await page.goto(APP);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
-  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" }); // the dev-mode badge
+  // the dev-mode badge, and the scroll-down button that floats over a long reply
+  await page.addStyleTag({ content: "nextjs-portal, [role=log] button.rounded-full.absolute { display: none !important; }" });
   await page.getByRole("textbox", { name: "Your message" }).waitFor();
   return page;
 }
