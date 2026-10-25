@@ -1,0 +1,23 @@
+{
+  "name": "buddha-gpt",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -n core,agent,web -c green,blue,magenta \"pnpm dev:core\" \"pnpm dev:agent\" \"pnpm dev:web\"",
+    "dev:core": "cd services/core && go run ./cmd/buddha serve",
+    "dev:agent": "pnpm --filter buddha-gpt-agent dev",
+    "dev:web": "pnpm --filter buddha-gpt-web dev",
+    "sync": "cd services/core && go run ./cmd/buddha sync",
+    "eval": "cd services/core && go run ./cmd/buddha eval",
+    "lint": "pnpm -r lint && pnpm -r check && cd services/core && go vet ./...",
+    "test": "pnpm -r test && cd services/core && go test ./...",
+    "diagram": "node docs/diagrams/services.mjs docs/services.svg"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6",
+    "elkjs": "0.12.0"
+  }
+}

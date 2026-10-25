@@ -1,0 +1,38 @@
+# Buddha GPT
+
+Talk with the Buddha in English, Thai or Pali. Every teaching he relies on appears under his reply as the real passage, in Pali, Thai and English, with its source. He never invents scripture.
+
+> **Status:** Phase 0, the skeleton. The design and the plan are in [docs/PRD.md](docs/PRD.md).
+
+![Every service and how it talks to the others](docs/services.svg)
+
+## Run it locally
+
+You need Node 22+, pnpm 10, Go 1.26 and Docker.
+
+```bash
+pnpm install
+cp .env.example .env
+docker compose up -d db
+pnpm dev
+```
+
+Open <http://localhost:5005>. The page shows whether the agent, the Go core and Postgres are up. If something else already uses port 5432, set `POSTGRES_PORT` in `.env` and change the port in `DATABASE_URL` to match.
+
+| Service | Health check |
+|---|---|
+| Web (Next.js) | <http://localhost:5005/healthz> |
+| Agent (Express) | <http://localhost:7891/healthz> |
+| Retrieval API (Go) | <http://localhost:7890/healthz> |
+
+The monorepo layout, commands and conventions are in [AGENTS.md](AGENTS.md).
+
+## Texts and licences
+
+The source texts aren't in this repo. `pnpm sync` (Phase 1) downloads them:
+
+- **Pali:** VRI's Chaṭṭha Saṅgāyana edition, free for non-commercial use with credit.
+- **Thai:** the Royal translation (ฉบับหลวง), which carries no rights statement.
+- **English:** Ṭhānissaro Bhikkhu (CC BY-NC 4.0), and public-domain translations from 1930 or earlier for the suttas he didn't translate.
+
+Because of these terms, Buddha GPT is free and non-commercial.

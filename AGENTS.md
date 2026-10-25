@@ -1,0 +1,63 @@
+# Buddha GPT
+
+Talk with the Buddha in English, Thai or Pali: a grounded RAG agent where every quote is real. The product and design live in [docs/PRD.md](docs/PRD.md).
+
+## Architecture
+
+- **The web app is a thin client.** The agent owns the chat turn (guard, retrieval, the model call, the checks), and the Go core owns the data (canon, vectors, search). Never put business logic in Next.js.
+- **The model chooses, code quotes.** The model picks passage IDs; code fills every card and quote from the database. Model output never becomes scripture text.
+
+```text
+buddha-gpt/
+├── apps/web/            Next.js 16 + shadcn/ui · pnpm: buddha-gpt-web                 :5005
+├── services/agent/      Express 5 + AI SDK 7 · pnpm: buddha-gpt-agent                 :7891
+├── services/core/       Go module, skipped by pnpm: one `buddha` binary
+│                        (serve = Retrieval API :7890, sync, eval)
+├── packages/shared/     @buddha-gpt/shared · TS types used by both web and agent
+├── docs/                PRD.md, diagrams (docs/archive/ is private and git-ignored)
+└── docker-compose.yml   Postgres 18 + pgvector                                        :5432
+```
+
+`apps/*` are deployed apps, `services/*` are hosted backends, and `packages/*` are shared libraries. Add to `packages/shared` only what both the web app and the agent use. `prompts/`, `policy.yaml` and `evals/` arrive in later phases (PRD §12).
+
+## Stack
+
+- **Web:** Next.js 16 (App Router, Cache Components), Tailwind 4, shadcn/ui (`radix-nova`), AI Elements for the chat parts
+- **Agent:** Node 22, Express 5, AI SDK 7, OpenRouter
+- **Core:** Go 1.26, `net/http`, pgx. SQL migrations in `services/core/migrations/` are applied on startup; no ORM.
+- **Database:** Postgres 18 + pgvector + `pg_trgm`, through Docker Compose
+
+These frameworks move fast. Next.js ships its own docs in `apps/web/node_modules/next/dist/docs/` (see `apps/web/AGENTS.md`); check current docs before writing framework code.
+
+## Commands
+
+```bash
+docker compose up -d db   # Postgres + pgvector
+pnpm dev                  # Go core + agent + web, through concurrently
+pnpm dev:core             # or dev:agent, dev:web: one service
+pnpm lint                 # ESLint, type checks, go vet
+pnpm test                 # TypeScript tests, then go test
+pnpm sync                 # ingest the texts (Phase 1)
+pnpm eval                 # run the eval suite (Phase 5)
+pnpm diagram              # regenerate docs/services.svg
+```
+
+## Ports
+
+| Service | Port |
+|---|---|
+| Web (Next.js) | 5005 |
+| Agent (Express) | 7891 |
+| Retrieval API (Go) | 7890 |
+| Postgres | 5432 |
+
+## Environment
+
+One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, `EVAL_MODE`. The Go core, the agent and Docker Compose read it, and every setting has a local default. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
+
+## Rules
+
+- Source texts are never committed. `buddha sync` downloads them into `data/`, which git ignores.
+- `prompts/` and `policy.yaml` are public, so safety lives in code, never in a secret prompt.
+- Every service answers `GET /healthz`.
+- Never commit `docs/archive/`.

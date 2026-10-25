@@ -1,12 +1,11 @@
 // Generates docs/services.svg: every service in buddha-gpt and every link between them.
 // Edge numbers match the link table in PRD §7.1; change both together.
-// Run: node docs/diagrams/services.mjs <path to elkjs@0.12 lib/elk.bundled.js> docs/services.svg
-import { createRequire } from 'node:module'
+// Run: pnpm diagram (elkjs is a root dev dependency)
+import ELK from 'elkjs/lib/elk.bundled.js'
 import { writeFileSync } from 'node:fs'
 
-const [elkPath, outPath] = process.argv.slice(2)
-if (!elkPath || !outPath) throw new Error('usage: node services.mjs <elk.bundled.js> <out.svg>')
-const ELK = createRequire(import.meta.url)(elkPath)
+const [outPath] = process.argv.slice(2)
+if (!outPath) throw new Error('usage: node services.mjs <out.svg>')
 
 const KIND = {
   ts: ['#E8F0FE', '#3B6FD4'],

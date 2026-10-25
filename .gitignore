@@ -5,3 +5,9 @@ data/
 # local Claude Code state
 .claude/settings.local.json
 .claude/worktrees/
+# dependencies, build output, local env (.env.example stays tracked)
+node_modules/
+dist/
+coverage/
+.env
+.env*.local

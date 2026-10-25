@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "services/*" # services/core is Go (no package.json), so pnpm skips it
+  - "packages/*"
+
+# skip these native build scripts: prebuilt binaries cover dev (sharp and unrs-resolver
+# from create-next-app; esbuild via tsx, whose tests pass without it)
+ignoredBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
