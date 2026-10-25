@@ -43,6 +43,26 @@ func TestPerSutta(t *testing.T) {
 	}
 }
 
+func TestLineUp(t *testing.T) {
+	cases := []struct {
+		name string
+		a, b []int
+		want bool
+	}{
+		{"one paragraph each", []int{900}, []int{300}, true},
+		{"verses, the English a little longer", []int{120, 110, 130}, []int{150, 160, 140}, true},
+		{"different counts", []int{100, 100}, []int{100, 100, 100}, false},
+		// AN 9.1's first five paragraphs: the English is a paragraph ahead, so the Buddha's
+		// question would get the monks' reply as its translation
+		{"same count, drifting", []int{127, 299, 148, 213, 140}, []int{333, 255, 66, 47, 365}, false},
+	}
+	for _, c := range cases {
+		if got := lineUp(c.a, c.b); got != c.want {
+			t.Errorf("%s: lineUp = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 func TestVectorLiteral(t *testing.T) {
 	if got := vectorLiteral([]float32{0.5, -1, 0.25}); got != "[0.5,-1,0.25]" {
 		t.Errorf("vectorLiteral = %s", got)

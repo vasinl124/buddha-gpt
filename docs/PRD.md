@@ -250,7 +250,7 @@ buddha-gpt/
 - Pali and English join by sutta heading. The Thai is organised by volume and ข้อ, so `buddha sync` builds a crosswalk into `suttas`:
   - DN, MN, SN and AN: each sutta starts where its opening words, from sc-data's ID-keyed copy of the same translation, are found in the volume. Openings found exactly once are anchors (the longest run in order is kept); the rest are searched for between them, and a short or repeated opening must be the only match. A sutta whose opening isn't found is left out with the one before it, whose end is then unknown: better no Thai than Thai under the wrong sutta. This places 3,157 of 3,233 suttas;
   - the Dhammapada and Sutta Nipāta aren't in sc-data's Thai, so they need their own crosswalk (verse numbers, sutta headings) later.
-- **Paragraphs:** when a sutta has the same number of paragraphs in two languages, they align in order. Otherwise the card shows the cited paragraph and links to the whole sutta in the other languages.
+- **Paragraphs:** when a sutta has the same number of paragraphs in two languages, and each paragraph's share of the sutta's length agrees within a factor of two, they align in order. A count can match by chance: MN 10 has 94 paragraphs in Pali and in English, which drift apart midway. Otherwise the card shows the cited paragraph, the other languages whole when the sutta is short, and a link to the whole sutta.
 - **Spike for later:** thepathofpurity also hosts the Siam Rath Pali that the Thai was translated from, in the same 45 volumes. If its ข้อ numbers match the Thai, Thai↔Pali paragraph alignment becomes a database join.
 
 ### 8.4 Chunks and embeddings
