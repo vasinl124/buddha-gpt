@@ -5,6 +5,7 @@ import { chat, type BuddhaMessage } from "./chat.ts";
 
 // Longer than the core's 1 s database probe, so a slow database shows as db "down", not core "down".
 const CORE_TIMEOUT_MS = 2000;
+const MAX_CHARS = 2000; // the longest message the web input allows
 
 export const app = express();
 
@@ -15,6 +16,11 @@ app.post("/api/chat", express.json({ limit: "1mb" }), async (req, res) => {
   const messages = (req.body as { messages?: BuddhaMessage[] })?.messages;
   if (!Array.isArray(messages) || !messages.some((m) => m.role === "user")) {
     res.status(400).json({ error: "send {messages: [...]} with at least one user message" });
+    return;
+  }
+  const latest = messages.findLast((m) => m.role === "user")?.parts ?? [];
+  if (latest.reduce((n, p) => n + (p.type === "text" ? p.text.length : 0), 0) > MAX_CHARS) {
+    res.status(413).json({ error: `keep a message under ${MAX_CHARS} characters` });
     return;
   }
   await chat(messages, res);

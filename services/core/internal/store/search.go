@@ -54,9 +54,11 @@ func perSutta(hits []Hit, max, k int) []Hit {
 }
 
 // Search runs the vector and lexical legs and fuses them with RRF. embed may be nil (no embedding
-// model configured): the search is then lexical only.
-func (s *Store) Search(ctx context.Context, query string, k int, model string, embed Embedder) (Result, error) {
-	lex, err := s.lexical(ctx, text.Fold(query), legLimit)
+// model configured): the search is then lexical only. Suttas in exclude are left out of both legs
+// (the risk filter, PRD §6).
+func (s *Store) Search(ctx context.Context, query string, k int, model string, embed Embedder, exclude []string) (Result, error) {
+	exclude = append([]string{}, exclude...) // never nil: "not (x = any(null))" would drop every row
+	lex, err := s.lexical(ctx, text.Fold(query), legLimit, exclude)
 	if err != nil {
 		return Result{}, fmt.Errorf("lexical: %w", err)
 	}
@@ -66,7 +68,7 @@ func (s *Store) Search(ctx context.Context, query string, k int, model string, e
 		if err != nil {
 			return Result{}, fmt.Errorf("embed query: %w", err)
 		}
-		if vec, err = s.vector(ctx, model, v, legLimit); err != nil {
+		if vec, err = s.vector(ctx, model, v, legLimit, exclude); err != nil {
 			return Result{}, fmt.Errorf("vector: %w", err)
 		}
 	}
@@ -114,10 +116,10 @@ func Fuse(k int, lists ...[]Hit) []Hit {
 // text, so "anatta" finds "anattā"). Many paragraphs match a phrase exactly, so ties go to full
 // paragraphs over abbreviated repetitions ("…pe…"), then to the one the query fills most of.
 // ponytail: hand-tuned order and a 40-character floor for stubs; let the Phase 5 evals tune it.
-func (s *Store) lexical(ctx context.Context, folded string, limit int) ([]Hit, error) {
+func (s *Store) lexical(ctx context.Context, folded string, limit int, exclude []string) ([]Hit, error) {
 	rows, err := s.Pool.Query(ctx, `select id, sutta_id, lang, text, word_similarity($1, lex) as score
-		from paras where $1 <% lex and length(lex) >= 40
-		order by score desc, lex like '%…pe…%', similarity($1, lex) desc, id limit $2`, folded, limit)
+		from paras where $1 <% lex and length(lex) >= 40 and not (sutta_id = any($3))
+		order by score desc, lex like '%…pe…%', similarity($1, lex) desc, id limit $2`, folded, limit, exclude)
 	if err != nil {
 		return nil, err
 	}
@@ -126,16 +128,16 @@ func (s *Store) lexical(ctx context.Context, folded string, limit int) ([]Hit, e
 
 // vector finds the paragraphs nearest the query vector by cosine. The production model uses its
 // HNSW index (the cast must match the index expression); other models scan.
-func (s *Store) vector(ctx context.Context, model string, v []float32, limit int) ([]Hit, error) {
+func (s *Store) vector(ctx context.Context, model string, v []float32, limit int, exclude []string) ([]Hit, error) {
 	q := `select p.id, p.sutta_id, p.lang, p.text, 1 - (x.v <=> $1::vector) as score
 		from para_vecs x join paras p on p.id = x.para_id
-		where x.model = $3 order by x.v <=> $1::vector limit $2`
+		where x.model = $3 and not (p.sutta_id = any($4)) order by x.v <=> $1::vector limit $2`
 	if model == "baai/bge-m3" {
 		q = `select p.id, p.sutta_id, p.lang, p.text, 1 - ((x.v::vector(1024)) <=> $1::vector(1024)) as score
 			from para_vecs x join paras p on p.id = x.para_id
-			where x.model = $3 order by (x.v::vector(1024)) <=> $1::vector(1024) limit $2`
+			where x.model = $3 and not (p.sutta_id = any($4)) order by (x.v::vector(1024)) <=> $1::vector(1024) limit $2`
 	}
-	rows, err := s.Pool.Query(ctx, q, vectorLiteral(v), limit, model)
+	rows, err := s.Pool.Query(ctx, q, vectorLiteral(v), limit, model, exclude)
 	if err != nil {
 		return nil, err
 	}

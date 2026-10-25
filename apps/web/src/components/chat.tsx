@@ -1,9 +1,9 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { CITE, type ChatData } from "@buddha-gpt/shared";
+import { CITE, type ChatData, type Crisis } from "@buddha-gpt/shared";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { ArrowUpIcon, SquarePenIcon } from "lucide-react";
+import { ArrowUpIcon, PhoneIcon, SquarePenIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Conversation,
@@ -14,6 +14,7 @@ import {
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { SourceCards } from "@/components/source-cards";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
@@ -132,6 +133,7 @@ function Turn({ message }: { message: BuddhaMessage }) {
   }
   const cards = message.parts.flatMap((p) => (p.type === "data-cards" ? p.data : []));
   const notice = message.parts.find((p) => p.type === "data-notice")?.data;
+  const crisis = message.parts.find((p) => p.type === "data-crisis")?.data;
   return (
     <Message from="assistant">
       <MessageContent className="w-full">
@@ -141,9 +143,38 @@ function Turn({ message }: { message: BuddhaMessage }) {
           </Badge>
         )}
         <MessageResponse components={{ a: CiteLink }}>{linkCitations(text, message.id)}</MessageResponse>
+        {crisis && <Hotlines crisis={crisis} />}
         <SourceCards replyId={message.id} cards={cards} />
       </MessageContent>
     </Message>
+  );
+}
+
+// The numbers come from policy.yaml through the agent, never from the model (PRD §6).
+function Hotlines({ crisis }: { crisis: Crisis }) {
+  return (
+    <Alert>
+      <PhoneIcon />
+      <AlertTitle>{crisis.title}</AlertTitle>
+      <AlertDescription>
+        <ul className="flex flex-col gap-1">
+          {crisis.lines.map((line) => (
+            <li key={line.label}>
+              {line.number ? (
+                <a href={`tel:${line.number}`} className="font-medium text-foreground">
+                  {line.number}
+                </a>
+              ) : (
+                <a href={line.url} target="_blank" rel="noreferrer">
+                  {line.url?.replace(/^https?:\/\//, "")}
+                </a>
+              )}{" "}
+              {line.label}
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
   );
 }
 

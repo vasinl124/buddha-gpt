@@ -25,11 +25,19 @@ export interface Card {
   whole?: Partial<Record<Lang, string>>;
 }
 
+/** The hotlines under a crisis reply, from policy.yaml: the model never writes a number. */
+export interface Crisis {
+  title: string;
+  lines: { label: string; number?: string; url?: string }[];
+}
+
 /** The custom parts the agent streams with a reply (AI SDK UI message data parts). A type, not an
  * interface: the AI SDK needs an index signature here. */
 export type ChatData = {
   cards: Card[];
   notice: string; // e.g. "mock model": shown above the reply
+  crisis: Crisis;
+  risk: true; // this conversation showed risk; the browser sends it back with later turns (PRD §9)
 };
 
 /** How the model marks a citation in its reply text: [[cite:sn56.11#en5]]. */

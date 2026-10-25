@@ -6,13 +6,16 @@ import { MockLanguageModelV4 } from "ai/test";
 
 export const modelId = () => process.env.AGENT_MODEL || "anthropic/claude-opus-5.5";
 
-export function chatModel(topIds: () => string[]): { model: LanguageModel; mock: boolean } {
+/** The OpenRouter model, or null without a key. */
+export function guardModel(): LanguageModel | null {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (apiKey) {
-    // require_parameters: route only to providers that honour tools, never drop them silently
-    return { model: createOpenRouter({ apiKey })(modelId(), { provider: { require_parameters: true } }), mock: false };
-  }
-  return { model: mockModel(topIds), mock: true };
+  // require_parameters: route only to providers that honour tools and schemas, never drop them silently
+  return apiKey ? createOpenRouter({ apiKey })(modelId(), { provider: { require_parameters: true } }) : null;
+}
+
+export function chatModel(topIds: () => string[]): { model: LanguageModel; mock: boolean } {
+  const model = guardModel();
+  return model ? { model, mock: false } : { model: mockModel(topIds), mock: true };
 }
 
 // The mock replies with fixed sentences that cite the first two passages retrieved this turn.

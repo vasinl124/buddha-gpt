@@ -37,14 +37,15 @@ type fake struct {
 	ping    error
 	query   string
 	k       int
+	exclude []string
 	ids     []string
 	passage string
 	window  int
 }
 
 func (f *fake) Ping(context.Context) error { return f.ping }
-func (f *fake) Search(_ context.Context, q string, k int) (store.Result, error) {
-	f.query, f.k = q, k
+func (f *fake) Search(_ context.Context, q string, k int, exclude []string) (store.Result, error) {
+	f.query, f.k, f.exclude = q, k, exclude
 	return store.Result{Hits: []store.Hit{{ID: "sn56.11#en5", SuttaID: "sn56.11", Lang: "en"}}}, nil
 }
 func (f *fake) Cards(_ context.Context, ids []string) ([]store.Card, error) {
@@ -72,6 +73,10 @@ func TestRoutes(t *testing.T) {
 	if rec := call(h, "POST", "/v1/search", `{"query":"four noble truths"}`); rec.Code != http.StatusOK ||
 		f.query != "four noble truths" || f.k != 8 || !strings.Contains(rec.Body.String(), `"sutta_id":"sn56.11"`) {
 		t.Errorf("search: %d %s (query %q, k %d)", rec.Code, rec.Body, f.query, f.k)
+	}
+	if rec := call(h, "POST", "/v1/search", `{"query":"grief","exclude":["sn22.87","sn4.23"]}`); rec.Code != http.StatusOK ||
+		strings.Join(f.exclude, ",") != "sn22.87,sn4.23" {
+		t.Errorf("search with exclude: %d %s (exclude %v)", rec.Code, rec.Body, f.exclude)
 	}
 	if rec := call(h, "POST", "/v1/search", `{"query":"  "}`); rec.Code != http.StatusBadRequest {
 		t.Errorf("empty query: %d", rec.Code)

@@ -71,7 +71,7 @@ func serve(ctx context.Context) error {
 // backend is what the HTTP routes need: the store implements it, the tests fake it.
 type backend interface {
 	Ping(ctx context.Context) error
-	Search(ctx context.Context, query string, k int) (store.Result, error)
+	Search(ctx context.Context, query string, k int, exclude []string) (store.Result, error)
 	Cards(ctx context.Context, ids []string) ([]store.Card, error)
 	Passage(ctx context.Context, id string, window int) ([]store.Hit, error)
 }
@@ -97,8 +97,8 @@ func newLive(st *store.Store, emb *embed.Client) live {
 }
 
 func (l live) Ping(ctx context.Context) error { return l.st.Pool.Ping(ctx) }
-func (l live) Search(ctx context.Context, q string, k int) (store.Result, error) {
-	return l.st.Search(ctx, q, k, l.model, l.embed)
+func (l live) Search(ctx context.Context, q string, k int, exclude []string) (store.Result, error) {
+	return l.st.Search(ctx, q, k, l.model, l.embed, exclude)
 }
 func (l live) Cards(ctx context.Context, ids []string) ([]store.Card, error) {
 	return l.st.Cards(ctx, ids)
@@ -160,17 +160,18 @@ func routes(b backend) http.Handler {
 	})
 	mux.HandleFunc("POST /v1/search", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Query string `json:"query"`
-			K     int    `json:"k"`
+			Query   string   `json:"query"`
+			K       int      `json:"k"`
+			Exclude []string `json:"exclude"` // sutta IDs to leave out: the risk filter
 		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || strings.TrimSpace(req.Query) == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "send {\"query\": \"…\"}"})
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || strings.TrimSpace(req.Query) == "" || len(req.Exclude) > 50 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "send {\"query\": \"…\"}, with at most 50 suttas to exclude"})
 			return
 		}
 		if req.K <= 0 || req.K > 50 {
 			req.K = 8 // the number the model sees (PRD §8.5)
 		}
-		res, err := b.Search(r.Context(), req.Query, req.K)
+		res, err := b.Search(r.Context(), req.Query, req.K, req.Exclude)
 		if err != nil {
 			log.Printf("search: %v", err)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "search failed"})
@@ -312,7 +313,7 @@ func runSearch(ctx context.Context, args []string) error {
 	}
 	defer st.Close()
 	emb := embed.FromEnv()
-	res, err := newLive(st, emb).Search(ctx, query, *k)
+	res, err := newLive(st, emb).Search(ctx, query, *k, nil)
 	if err != nil {
 		return err
 	}
