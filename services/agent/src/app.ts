@@ -3,7 +3,7 @@ import cors from "cors";
 import express from "express";
 import { accounts, origins, signedIn } from "./accounts.ts";
 import { chat, type BuddhaMessage } from "./chat.ts";
-import { counter } from "./limit.ts";
+import { clientAddress, counter } from "./limit.ts";
 
 // Longer than the core's 1 s database probe, so a slow database shows as db "down", not core "down".
 const CORE_TIMEOUT_MS = 2000;
@@ -43,7 +43,7 @@ app.post("/api/chat", express.json({ limit: "1mb" }), async (req, res) => {
     return;
   }
   if (!body.eval) {
-    const address = req.ip ?? "";
+    const address = clientAddress(req);
     const used = turns.used(address);
     // the core is asked who's signed in only once a guest's share is used up
     const member = used >= GUEST_TURNS && used < MEMBER_TURNS && (await signedIn(req));

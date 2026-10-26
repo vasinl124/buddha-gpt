@@ -19,10 +19,10 @@
 <rect x="174" y="138" width="133" height="53" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
 <text x="240.5" y="161" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Browser</text>
 <text x="240.5" y="178" text-anchor="middle" font-size="12" fill="#4B5563">phone or laptop</text>
-<rect x="112" y="337" width="258" height="70" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
-<text x="241" y="360" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">web</text>
-<text x="241" y="377" text-anchor="middle" font-size="12" fill="#4B5563">Next.js · the public HTTPS domain</text>
-<text x="241" y="394" text-anchor="middle" font-size="12" fill="#4B5563">pages · proxies /agent/*</text>
+<rect x="80" y="337" width="321" height="70" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
+<text x="240.5" y="360" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">web</text>
+<text x="240.5" y="377" text-anchor="middle" font-size="12" fill="#4B5563">Next.js · buddha.maxlim.xyz via Cloudflare</text>
+<text x="240.5" y="394" text-anchor="middle" font-size="12" fill="#4B5563">pages · proxies /agent/*</text>
 <rect x="115" y="553" width="251" height="70" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
 <text x="240.5" y="576" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">agent</text>
 <text x="240.5" y="593" text-anchor="middle" font-size="12" fill="#4B5563">Express + AI SDK · private :7891</text>

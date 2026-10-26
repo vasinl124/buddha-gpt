@@ -2,7 +2,7 @@
 // the agent is the door. It holds the session token in an HttpOnly cookie, out of reach of the
 // page's scripts, and hands it to the core as a bearer token.
 import express, { type Request, type Response } from "express";
-import { counter } from "./limit.ts";
+import { clientAddress, counter } from "./limit.ts";
 
 const COOKIE = "buddha_session";
 const TRIES = 20; // sign-ins and sign-ups from one address in a window
@@ -63,7 +63,7 @@ const route = (fn: (req: Request, res: Response) => Promise<void>) => async (req
 // sign-up counts against the address, so it can't make accounts in bulk; a sign-in counts when it fails.
 const enter = (path: string, countEvery: boolean) =>
   route(async (req, res) => {
-    const address = req.ip ?? "";
+    const address = clientAddress(req);
     if (tries.used(address) >= TRIES) {
       res.status(429).json({ error: "Too many tries. Wait a few minutes." });
       return;
