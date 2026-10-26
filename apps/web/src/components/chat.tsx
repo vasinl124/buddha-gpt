@@ -198,10 +198,13 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
 
   // An empty conversation starts in the middle of the yellow; once there's a question, the yellow
   // gives way to the conversation and the input moves to the bottom. The form keeps its place among
-  // the children, so it stays mounted and focused.
+  // the children, so it stays mounted and focused. The wheel in the yellow's corner is decoration (the
+  // bar already names the app), and sits outside Welcome: a fading element is the containing block of
+  // what it holds, so inside it the wheel would start over the headline and jump to the corner.
   const empty = messages.length === 0;
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${empty ? HERO : "gap-3 px-4 pb-3"}`}>
+      {empty && <Mark className={`absolute top-6 right-6 hidden size-16 rotate-12 md:block [&_*]:stroke-[0.9] ${ENTER}`} />}
       {empty ? (
         <Welcome />
       ) : (
@@ -295,12 +298,10 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
   );
 }
 
-// The empty page: who you're talking to, and how to begin. The wheel in the corner is decoration; the
-// bar already names the app.
+// The empty page: who you're talking to, and how to begin.
 function Welcome() {
   return (
     <div className={`mt-auto flex flex-col items-center gap-5 pb-4 text-center ${ENTER}`}>
-      <Mark className="absolute top-6 right-6 hidden size-16 rotate-12 md:block [&_*]:stroke-[0.9]" />
       <h2 className="text-[clamp(2.6rem,6.5vw,4.75rem)] leading-[1.02] font-[480] tracking-[-0.055em] text-balance">
         Talk with the Buddha.
         <span className="block font-display font-normal tracking-[-0.035em]">Every quote is real.</span>
