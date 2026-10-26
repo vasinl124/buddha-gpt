@@ -303,7 +303,9 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, evalM
     },
   });
   if (!evalMode) {
-    await pipeUIMessageStreamToResponse({ response: res, stream });
+    // no-transform: a proxy in front, such as the hosted web app's, mustn't gzip the stream, which
+    // would hold the words back until the reply ends
+    await pipeUIMessageStreamToResponse({ response: res, stream, headers: { "Cache-Control": "no-cache, no-transform" } });
     return;
   }
   const out = { reply: "", cards: [] as Card[], crisis: null as Crisis | null, error: "" };

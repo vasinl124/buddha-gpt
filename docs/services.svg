@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1023 975" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
-<title>buddha-gpt: services and how they talk</title>
+<title>buddha-gpt · services and how they talk</title>
 <desc>Every runtime component of buddha-gpt and every link between them, numbered 1 to 11 to match the link table in PRD section 7.1. Solid arrows are calls a user is waiting on; dashed arrows are batch jobs (ingest and evals) that nobody waits on.</desc>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#374151"/></marker></defs>
 <rect width="1023" height="975" fill="#FFFFFF"/>
