@@ -1,27 +1,25 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { CITE, type ChatData, type Crisis } from "@buddha-gpt/shared";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { CITE, type Crisis } from "@buddha-gpt/shared";
+import { DefaultChatTransport, generateId } from "ai";
 import { ArrowUpIcon, PhoneIcon, RotateCcwIcon, SquareIcon } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { AnimateOptions } from "streamdown";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Suggestion } from "@/components/ai-elements/suggestion";
+import { History } from "@/components/history";
 import { SourceCards } from "@/components/source-cards";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
-import { Mark, TopBar } from "@/components/top-bar";
+import { Frame, Mark } from "@/components/top-bar";
+import { load, save, title, upsert, watch, type BuddhaMessage, type SavedChat } from "@/lib/history";
 import { quotesToThaiScript, toThaiScript } from "@/lib/pali";
 
-type BuddhaMessage = UIMessage<never, ChatData>;
-
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7891";
-// the conversation lives in this browser only (PRD §11)
-const SAVED = "buddha-gpt:conversation";
 const STARTERS = ["What is suffering?", "How do I stop being angry?", "My father died last month", "ทุกข์คืออะไร"];
 // Thai in a turn shows its Pali in Thai script, as Thai editions print it; otherwise it's Roman
 const THAI = /[฀-๿]/;
@@ -37,27 +35,57 @@ const BLESSINGS = [
   { pi: "Mettañca sabbalokasmi", en: "goodwill for the whole world", th: "เมตตาไปทั่วทั้งโลก" },
 ];
 
-function load<T>(key: string, fallback: T): T {
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function save(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // private mode or full storage: it just isn't kept
-  }
-}
-
+// The conversations kept in this browser (PRD §11): the sidebar lists them and the chat shows one. The
+// chat is keyed by its conversation, so opening another starts it afresh with that one's messages.
 export function Chat() {
+  const [chats, setChats] = useState<SavedChat[]>(() => load());
+  const [current, setCurrent] = useState(() => chats[0]?.id ?? generateId());
+  const [busy, setBusy] = useState(false);
+  const unsaved = !chats.some((c) => c.id === current); // a new conversation: nothing to start over from
+
+  useEffect(() => save(chats), [chats]);
+  useEffect(() => watch(setChats), []); // another tab saved: take its list
+
+  // called as a question goes out and as its reply ends, never on every streamed word
+  const keep = useCallback(
+    (messages: BuddhaMessage[]) => {
+      if (!messages.length) return;
+      setChats((all) => {
+        const kept = all.find((c) => c.id === current)?.messages;
+        // nothing new, as when a conversation is only opened: it keeps its place in the list
+        if (kept?.length === messages.length && kept.at(-1)?.id === messages.at(-1)?.id) return all;
+        return upsert(all, { id: current, title: title(messages), updated: Date.now(), messages });
+      });
+    },
+    [current],
+  );
+  const fresh = () => setCurrent(generateId());
+  const remove = (id: string) => {
+    setChats((all) => all.filter((c) => c.id !== id));
+    if (id === current) fresh();
+  };
+
+  return (
+    <Frame
+      sidebar={<History chats={chats} current={current} disabled={busy} onOpen={setCurrent} onNew={fresh} onDelete={remove} />}
+      onNew={busy || unsaved ? undefined : fresh}
+    >
+      <ChatBody key={current} initial={chats.find((c) => c.id === current)?.messages ?? []} onChange={keep} onBusy={setBusy} />
+    </Frame>
+  );
+}
+
+interface ChatBodyProps {
+  initial: BuddhaMessage[];
+  onChange: (messages: BuddhaMessage[]) => void;
+  onBusy: (busy: boolean) => void;
+}
+
+function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
   const [input, setInput] = useState("");
   const box = useRef<HTMLTextAreaElement>(null);
-  const { messages, sendMessage, setMessages, status, error, stop, regenerate } = useChat<BuddhaMessage>({
-    messages: load(SAVED, []),
+  const { messages, sendMessage, status, error, stop, regenerate } = useChat<BuddhaMessage>({
+    messages: initial,
     transport: new DefaultChatTransport({ api: `${API}/api/chat` }),
   });
   const busy = status === "submitted" || status === "streaming";
@@ -67,7 +95,10 @@ export function Chat() {
   // the agent holds a reply until its first cited sentence, so the first words can take a while
   const waiting = busy && !(last?.role === "assistant" && textOf(last).trim());
 
-  useEffect(() => save(SAVED, messages), [messages]);
+  useEffect(() => {
+    if (status !== "streaming") onChange(messages);
+  }, [messages, status, onChange]);
+  useEffect(() => onBusy(busy), [busy, onBusy]);
 
   const send = (text: string) => {
     if (!text.trim() || busy) return;
@@ -82,92 +113,89 @@ export function Chat() {
   // to the bottom. The form keeps its place among the children, so it stays mounted and focused.
   const empty = messages.length === 0;
   return (
-    <>
-      <TopBar onNew={busy || empty ? undefined : () => setMessages([])} />
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {empty ? (
-          <Welcome />
-        ) : (
-          <Conversation className="min-h-0 flex-1">
-            <ConversationContent className="px-0">
-              {messages.map((m, i) => (
-                <Turn
-                  key={m.id}
-                  message={m}
-                  question={messages[i - 1]}
-                  fresh={!saved.has(m.id)}
-                  streaming={status === "streaming" && m === last}
-                  waiting={waiting && m === last}
-                />
-              ))}
-              {waiting && last?.role === "user" && (
-                <Message from="assistant" className={ENTER}>
-                  <MessageContent>
-                    <Pending thai={THAI.test(textOf(last))} seed={last.id} />
-                  </MessageContent>
-                </Message>
-              )}
-              {error && (
-                <div role="alert" className={`flex flex-wrap items-center gap-3 text-sm text-destructive ${ENTER}`}>
-                  The reply didn’t arrive.
-                  <Button variant="outline" size="sm" onClick={() => regenerate()}>
-                    <RotateCcwIcon />
-                    Try again
-                  </Button>
-                </div>
-              )}
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
-        )}
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            send(input);
-          }}
-        >
-          <InputGroup className="bg-card shadow-sm">
-            <InputGroupTextarea
-              ref={box}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  send(input);
-                } else if (e.key === "Escape" && busy) stop();
-              }}
-              placeholder="Ask in English or Thai, or ask for the Pali…"
-              maxLength={2000}
-              aria-label="Your message"
-              autoFocus
-            />
-            <InputGroupAddon align="block-end" className="justify-end">
-              {busy ? (
-                <InputGroupButton type="button" variant="default" size="icon-sm" onClick={() => stop()} aria-label="Stop">
-                  <SquareIcon className="size-3 fill-current" />
-                </InputGroupButton>
-              ) : (
-                <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={!input.trim()} aria-label="Send">
-                  <ArrowUpIcon />
-                </InputGroupButton>
-              )}
-            </InputGroupAddon>
-          </InputGroup>
-        </form>
-        {empty && (
-          <div className="mb-auto flex flex-wrap justify-center gap-2">
-            {STARTERS.map((s) => (
-              <Suggestion key={s} suggestion={s} onClick={send} />
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {empty ? (
+        <Welcome />
+      ) : (
+        <Conversation className="min-h-0 flex-1">
+          <ConversationContent className="px-0">
+            {messages.map((m, i) => (
+              <Turn
+                key={m.id}
+                message={m}
+                question={messages[i - 1]}
+                fresh={!saved.has(m.id)}
+                streaming={status === "streaming" && m === last}
+                waiting={waiting && m === last}
+              />
             ))}
-          </div>
-        )}
-        <p className="text-center text-xs text-muted-foreground">
-          An AI reflecting on the Pali Canon, not the Buddha himself. Only the sources under each reply quote the texts.
-        </p>
-      </div>
-    </>
+            {waiting && last?.role === "user" && (
+              <Message from="assistant" className={ENTER}>
+                <MessageContent>
+                  <Pending thai={THAI.test(textOf(last))} seed={last.id} />
+                </MessageContent>
+              </Message>
+            )}
+            {error && (
+              <div role="alert" className={`flex flex-wrap items-center gap-3 text-sm text-destructive ${ENTER}`}>
+                The reply didn’t arrive.
+                <Button variant="outline" size="sm" onClick={() => regenerate()}>
+                  <RotateCcwIcon />
+                  Try again
+                </Button>
+              </div>
+            )}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+      )}
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          send(input);
+        }}
+      >
+        <InputGroup className="bg-card shadow-sm">
+          <InputGroupTextarea
+            ref={box}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                send(input);
+              } else if (e.key === "Escape" && busy) stop();
+            }}
+            placeholder="Ask in English or Thai, or ask for the Pali…"
+            maxLength={2000}
+            aria-label="Your message"
+            autoFocus
+          />
+          <InputGroupAddon align="block-end" className="justify-end">
+            {busy ? (
+              <InputGroupButton type="button" variant="default" size="icon-sm" onClick={() => stop()} aria-label="Stop">
+                <SquareIcon className="size-3 fill-current" />
+              </InputGroupButton>
+            ) : (
+              <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={!input.trim()} aria-label="Send">
+                <ArrowUpIcon />
+              </InputGroupButton>
+            )}
+          </InputGroupAddon>
+        </InputGroup>
+      </form>
+      {empty && (
+        <div className="mb-auto flex flex-wrap justify-center gap-2">
+          {STARTERS.map((s) => (
+            <Suggestion key={s} suggestion={s} onClick={send} />
+          ))}
+        </div>
+      )}
+      <p className="text-center text-xs text-muted-foreground">
+        An AI reflecting on the Pali Canon, not the Buddha himself. Only the sources under each reply quote the texts.
+      </p>
+    </div>
   );
 }
 

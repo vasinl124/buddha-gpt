@@ -14,6 +14,12 @@ Talk with the Buddha in English, Thai or Pali. He answers in plain speech, and S
 | **Lottery numbers get a kind no, with a teaching** | **A crisis message gets the right numbers at once** |
 | ![A Thai lottery request gets a kind no, its source folded below](docs/media/decline.png) | ![A crisis message answered with Thailand's hotline numbers](docs/media/crisis.png) |
 
+**Past conversations stay in a sidebar (a drawer on a phone), kept in this browser only**
+
+![Three conversations in the sidebar, grouped under Today, with the newest open](docs/media/history.png)
+
+[See the sidebar at work](docs/media/history.gif): opening conversations, starting a new one and deleting one.
+
 These replies come from DeepSeek V4 Flash, the default model. Real replies need an `OPENROUTER_API_KEY`; without one, a mock model shows the whole flow. `pnpm media` re-captures these pictures and the demo from the running app.
 
 ![Every service and how it talks to the others](docs/services.svg)
