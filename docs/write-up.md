@@ -116,4 +116,4 @@ GitHub Actions runs the suite on any PR that touches the prompts, the policy, th
 
 ---
 
-The code is at github.com/vasinl124/buddha-gpt, with the full design in `docs/PRD.md`.
+It's live at [buddha.maxlim.xyz](https://buddha.maxlim.xyz). The code is at github.com/vasinl124/buddha-gpt, with the full design in `docs/PRD.md`.

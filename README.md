@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://web-production-d5670.up.railway.app"><b>Try it live</b></a> ·
+  <a href="https://buddha.maxlim.xyz"><b>Try it live</b></a> ·
   <a href="docs/media/demo.mp4">Watch the demo video</a> ·
   <a href="docs/write-up.md">Read the write-up</a> ·
   <a href="docs/PRD.md">Read the design</a>
@@ -108,10 +108,10 @@ The prompts and the policy are public on purpose, so every guardrail holds even 
 
 ![The hosted app on Railway: one public domain](docs/railway.svg)
 
-Four services: `db` (the `pgvector/pgvector:pg18` image on a volume), `core`, `agent` and `web`, each built from the repo root with its own Dockerfile. Two lessons from the deploy:
+Four services: `db` (the `pgvector/pgvector:pg18` image on a volume), `core`, `agent` and `web`, each built from the repo root with its own Dockerfile. The app lives at [buddha.maxlim.xyz](https://buddha.maxlim.xyz), a custom domain proxied by Cloudflare. Two lessons from the deploy:
 
 - **Each `up.railway.app` domain is a site of its own,** so Safari wouldn't send the agent's session cookie to the web app. Only `web` is public: it proxies `/agent/*` to the agent over the private network, which makes the cookie first-party. The stream says `Cache-Control: no-transform`, so the proxy doesn't gzip it and hold the words back.
-- **Railway's edge sends `X-Forwarded-For: <visitor>, <edge>`.** Trusting one hop gave every visitor the edge's address, and so one shared rate limit; the agent trusts two.
+- **Railway's edge sends `X-Forwarded-For: <visitor>, <edge>`.** Trusting one hop gave every visitor the edge's address, and so one shared rate limit. Then the domain went behind Cloudflare, whose address took the visitor's place. Railway's `X-Real-IP` still names the visitor on both routes, and Railway overwrites any a client forges, so the limits count that (`CLIENT_IP_HEADER=x-real-ip`).
 
 ### Decisions worth talking about
 

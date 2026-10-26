@@ -64,7 +64,7 @@ const VIEWS = {
     footer: 'Numbers match the hosting table in PRD §7.4.',
     nodes: [
       box('browser', 'ts', 'Browser', ['phone or laptop']),
-      box('web', 'ts', 'web', ['Next.js · the public HTTPS domain', 'pages · proxies /agent/*']),
+      box('web', 'ts', 'web', ['Next.js · buddha.maxlim.xyz via Cloudflare', 'pages · proxies /agent/*']),
       box('agent', 'ts', 'agent', ['Express + AI SDK · private :7891', 'chat turns · accounts · limits']),
       box('core', 'go', 'core', ['Go · buddha serve · private :7890', 'search · cards · accounts']),
       box('pg', 'db', 'db', ['pgvector/pgvector:pg18 · volume', 'canon · vectors · users · chats']),

@@ -58,7 +58,7 @@ pnpm brand                # redraw the logo's images: README lockups, link previ
 
 ## Environment
 
-One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `AGENT_MODEL`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `CORE_ADDR`, `NEXT_PUBLIC_API_URL`, `AGENT_URL`, `CORS_ORIGINS`, `TRUST_PROXY`, `EVAL_MODE`, `EMBED_MODEL`, `EMBED_BASE_URL`. The Go core, the agent and Docker Compose read it, and every setting has a local default. With no `OPENROUTER_API_KEY`, a mock model answers and search is lexical only. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
+One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `AGENT_MODEL`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `CORE_ADDR`, `NEXT_PUBLIC_API_URL`, `AGENT_URL`, `SITE_URL`, `CORS_ORIGINS`, `TRUST_PROXY`, `CLIENT_IP_HEADER`, `EVAL_MODE`, `EMBED_MODEL`, `EMBED_BASE_URL`. The Go core, the agent and Docker Compose read it, and every setting has a local default. With no `OPENROUTER_API_KEY`, a mock model answers and search is lexical only. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
 
 ## Rules
 
