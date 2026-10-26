@@ -52,7 +52,7 @@ A new conversation starts on the welcome page: ask in English or Thai, ask for t
 | Sources opens the passages behind an answer, in Pali, Thai and English | Ask in Thai, and he answers in Thai |
 |---|---|
 | ![An answer about the four noble truths, with its sources open](docs/media/answer.png) | ![A Thai question answered in Thai with the noble truth of suffering, its sources folded below](docs/media/thai.png) |
-| **Ask for the Pali, and he answers in the canon's own words, here in Thai script** | **A popular quote, checked against the texts** |
+| **Ask for the Pali, and he answers in the canon's own words** | **A popular quote, checked against the texts** |
 | ![Asked for the Pali, the reply is the canon's own Pali](docs/media/pali.png) | ![Asked whether the Buddha said a popular quote, the app checks the texts and says what they hold](docs/media/quote.png) |
 | **Lottery numbers get a kind no, with a teaching** | **A crisis message gets the right numbers at once** |
 | ![A lottery request gets a kind no, its source folded below](docs/media/decline.png) | ![A crisis message answered with Thailand's hotline numbers](docs/media/crisis.png) |
