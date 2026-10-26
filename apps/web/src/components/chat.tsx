@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { CITE, type Crisis } from "@buddha-gpt/shared";
 import { DefaultChatTransport, generateId } from "ai";
-import { ArrowUpIcon, PhoneIcon, RotateCcwIcon, SquareIcon } from "lucide-react";
+import { ArrowRightIcon, PhoneIcon, RotateCcwIcon, SquareIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { AnimateOptions } from "streamdown";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
@@ -29,6 +29,12 @@ const THAI = /[฀-๿]/;
 // the agent releases a reply a sentence at a time: its words fade in as they arrive
 const WORDS: AnimateOptions = { animation: "blurIn", duration: 300, easing: "var(--ease-out-quart)" };
 const ENTER = "animate-in fade-in-0 duration-300 ease-out-quart";
+// an empty conversation sits on a panel of yellow, the question box on it with a hard shadow
+const HERO = "relative mx-2 mb-2 gap-5 overflow-y-auto rounded-2xl bg-hero px-4 pt-6 pb-4 md:mx-3 md:mb-3 md:px-8";
+const BOX =
+  "rounded-xl border-foreground bg-card shadow-[0_6px_0_var(--hero-shadow)] has-[[data-slot=input-group-control]:focus-visible]:border-foreground has-[[data-slot=input-group-control]:focus-visible]:ring-1 has-[[data-slot=input-group-control]:focus-visible]:ring-foreground";
+const CHIP =
+  "h-9 gap-2.5 rounded-md border-hero-line bg-transparent px-3 text-[0.8125rem] font-normal hover:-translate-y-0.5 hover:bg-hero-soft";
 // While he gathers his words: goodwill from the Mettā Sutta (Snp 1.8), verbatim from VRI's Pali,
 // with a plain gloss. Only wishes for the person's good, since the line shows before the agent knows
 // whether the message is a crisis; a crisis turn's dot has no words at all.
@@ -128,7 +134,7 @@ function Conversations({ user, onUser }: { user: User | null; onUser: (user: Use
       onNew={busy || !open ? undefined : fresh}
     >
       {lost && (
-        <p role="alert" className="pb-2 text-center text-xs text-destructive">
+        <p role="alert" className="px-4 pb-2 text-center text-xs text-destructive">
           Your account can&apos;t be reached right now, so this conversation isn&apos;t being kept. Reload to try again.
         </p>
       )}
@@ -144,7 +150,7 @@ function Conversations({ user, onUser }: { user: User | null; onUser: (user: Use
 // An account's conversation on its way from the core.
 function Opening() {
   return (
-    <div role="status" aria-label="Opening the conversation" className="flex flex-1 flex-col gap-3 pt-4">
+    <div role="status" aria-label="Opening the conversation" className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 px-4 pt-4">
       <Skeleton className="ml-auto h-10 w-2/5 rounded-2xl" />
       <Skeleton className="h-4 w-full" />
       <Skeleton className="h-4 w-11/12" />
@@ -190,16 +196,17 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
     if (matchMedia("(pointer: fine)").matches) box.current?.focus();
   };
 
-  // An empty conversation starts in the middle of the page; once there's a question, the input moves
-  // to the bottom. The form keeps its place among the children, so it stays mounted and focused.
+  // An empty conversation starts in the middle of the yellow; once there's a question, the yellow
+  // gives way to the conversation and the input moves to the bottom. The form keeps its place among
+  // the children, so it stays mounted and focused.
   const empty = messages.length === 0;
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className={`flex min-h-0 flex-1 flex-col ${empty ? HERO : "gap-3 px-4 pb-3"}`}>
       {empty ? (
         <Welcome />
       ) : (
         <Conversation className="min-h-0 flex-1">
-          <ConversationContent className="px-0">
+          <ConversationContent className="mx-auto w-full max-w-2xl px-0 pt-2 pb-6">
             {messages.map((m, i) => (
               <Turn
                 key={m.id}
@@ -232,12 +239,13 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
       )}
 
       <form
+        className="mx-auto w-full max-w-2xl"
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
         }}
       >
-        <InputGroup className="bg-card shadow-sm">
+        <InputGroup className={BOX}>
           <InputGroupTextarea
             ref={box}
             value={input}
@@ -252,41 +260,54 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
             maxLength={2000}
             aria-label="Your message"
             autoFocus
+            className={`px-3.5 pt-3 ${empty ? "min-h-20 text-lg md:text-lg" : "md:text-base"}`}
           />
-          <InputGroupAddon align="block-end" className="justify-end">
+          <InputGroupAddon align="block-end" className="justify-end px-2.5 pb-2.5">
             {busy ? (
-              <InputGroupButton type="button" variant="default" size="icon-sm" onClick={() => stop()} aria-label="Stop">
+              <InputGroupButton type="button" variant="default" onClick={() => stop()} className="h-9 gap-2.5 rounded-lg px-3.5">
+                Stop
                 <SquareIcon className="size-3 fill-current" />
               </InputGroupButton>
             ) : (
-              <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={!input.trim()} aria-label="Send">
-                <ArrowUpIcon />
+              <InputGroupButton type="submit" variant="default" disabled={!input.trim()} className="h-9 gap-2.5 rounded-lg px-3.5">
+                Ask
+                <ArrowRightIcon />
               </InputGroupButton>
             )}
           </InputGroupAddon>
         </InputGroup>
       </form>
       {empty && (
-        <div className="mb-auto flex flex-wrap justify-center gap-2">
+        <div className="mb-auto flex flex-wrap items-center justify-center gap-2 pt-2">
+          <span className="w-full text-center text-[0.8125rem] text-foreground/70 sm:mr-1 sm:w-auto">Try asking</span>
           {STARTERS.map((s) => (
-            <Suggestion key={s} suggestion={s} onClick={send} />
+            <Suggestion key={s} suggestion={s} onClick={send} className={CHIP}>
+              {s}
+              <ArrowRightIcon />
+            </Suggestion>
           ))}
         </div>
       )}
-      <p className="text-center text-xs text-muted-foreground">
+      <p className={empty ? "border-t border-hero-line pt-4 text-center text-[0.8125rem] text-foreground/75" : "text-center text-xs text-muted-foreground"}>
         An AI reflecting on the Pali Canon, not the Buddha himself. Only the sources under each reply quote the texts.
       </p>
     </div>
   );
 }
 
-// The empty page: who you're talking to, and how to begin.
+// The empty page: who you're talking to, and how to begin. The wheel in the corner is decoration; the
+// bar already names the app.
 function Welcome() {
   return (
-    <div className={`mt-auto flex flex-col items-center gap-3 pb-3 text-center ${ENTER}`}>
-      <Mark className="size-10 text-chart-3" />
-      <h2 className="font-serif text-2xl text-balance">Ask about the Dhamma, or about what weighs on you.</h2>
-      <p className="text-sm text-muted-foreground">A conversation with the Buddha where every quote is real.</p>
+    <div className={`mt-auto flex flex-col items-center gap-5 pb-4 text-center ${ENTER}`}>
+      <Mark className="absolute top-6 right-6 hidden size-16 rotate-12 md:block [&_*]:stroke-[0.9]" />
+      <h2 className="text-[clamp(2.6rem,6.5vw,4.75rem)] leading-[1.02] font-[480] tracking-[-0.055em] text-balance">
+        Talk with the Buddha.
+        <span className="block font-display font-normal tracking-[-0.035em]">Every quote is real.</span>
+      </h2>
+      <p className="text-base leading-relaxed text-balance md:text-lg">
+        Ask about the Dhamma, or about what weighs on you. <span className="md:block">In English, Thai or Pali.</span>
+      </p>
     </div>
   );
 }
@@ -316,7 +337,7 @@ function Turn({ message, question, fresh, streaming, waiting }: TurnProps) {
   if (message.role === "user") {
     return (
       <Message from="user" className={fresh ? `${ENTER} slide-in-from-bottom-2` : undefined}>
-        <MessageContent>{text}</MessageContent>
+        <MessageContent className="text-[0.9375rem] group-[.is-user]:rounded-2xl group-[.is-user]:py-2.5">{text}</MessageContent>
       </Message>
     );
   }
@@ -339,7 +360,7 @@ function Turn({ message, question, fresh, streaming, waiting }: TurnProps) {
           <Pending thai={thaiScript} seed={question?.id ?? message.id} quiet={!!crisis} />
         ) : (
           // his words in the serif: the app's own chrome stays in the sans
-          <div lang={pali ? "pi" : undefined} className="font-serif text-base leading-7">
+          <div lang={pali ? "pi" : undefined} className="font-serif text-[1.0625rem] leading-[1.8] [&_p+p]:mt-4">
             <MessageResponse components={{ a: ReplyLink }} animated={WORDS} isAnimating={streaming}>
               {stripCitations(pali && thaiScript ? quotesToThaiScript(text) : text)}
             </MessageResponse>
@@ -359,7 +380,7 @@ function Pending({ thai, seed, quiet = false }: { thai: boolean; seed: string; q
   const line = BLESSINGS[[...seed].reduce((n, c) => n + c.charCodeAt(0), 0) % BLESSINGS.length];
   return (
     <div role="status" className="flex min-h-7 items-start gap-2.5">
-      <span aria-hidden className="mt-2.5 size-2 shrink-0 animate-breathe rounded-full bg-primary" />
+      <span aria-hidden className="mt-2.5 size-2 shrink-0 animate-breathe rounded-full bg-hero-line" />
       {!quiet && (
         <p aria-hidden className="flex flex-col">
           <span lang="pi" className={`font-serif text-[0.9375rem] leading-7 text-foreground/75 ${thai ? "" : "italic"}`}>

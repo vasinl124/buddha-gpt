@@ -94,7 +94,8 @@ async function tour() {
   await page.getByRole("tooltip").waitFor();
   await page.waitForTimeout(300);
   const at = await dot.boundingBox();
-  await page.screenshot({ path: join(OUT, "status.png"), clip: { x: at.x - 120, y: 4, width: 175, height: 128 } });
+  // the dot and its tooltip, short of the New conversation button beside it
+  await page.screenshot({ path: join(OUT, "status.png"), clip: { x: at.x - 100, y: 4, width: 137, height: 136 } });
   await page.getByRole("button", { name: "Sign in to keep them anywhere" }).click();
   await page.getByRole("button", { name: "Create an account" }).click();
   await page.mouse.move(640, 400);

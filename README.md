@@ -46,6 +46,10 @@ I built it over one weekend, and it's live at [buddha.maxlim.xyz](https://buddha
 
 ## What it does
 
+A new conversation starts on the welcome page: ask in English or Thai, ask for the Pali, or pick one of the questions under the box.
+
+![The welcome page: "Talk with the Buddha. Every quote is real.", the question box, and four questions to try](docs/media/welcome.png)
+
 | Sources opens the passages behind an answer, in Pali, Thai and English | Ask in Thai, and he answers in Thai |
 |---|---|
 | ![An answer about the four noble truths, with its sources open](docs/media/answer.png) | ![A Thai question answered in Thai with the noble truth of suffering, its sources folded below](docs/media/thai.png) |
@@ -68,7 +72,7 @@ I built it over one weekend, and it's live at [buddha.maxlim.xyz](https://buddha
 |---|---|
 | ![The sign-up form at the foot of the sidebar, with a note on where conversations are kept](docs/media/signup.png) | ![The status dot's tooltip: agent, core and database all up](docs/media/status.png) |
 
-[See the sidebar at work](docs/media/history.gif) · [See signing in](docs/media/account.gif) · [See the empty page](docs/media/welcome.png)
+[See the sidebar at work](docs/media/history.gif) · [See signing in](docs/media/account.gif)
 
 ## How it works
 

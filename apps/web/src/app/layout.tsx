@@ -1,10 +1,22 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Noto_Sans, Noto_Sans_Thai, Noto_Serif, Noto_Serif_Thai } from "next/font/google";
+import { DM_Serif_Display, Geist_Mono, Inter_Tight, Noto_Sans, Noto_Sans_Thai, Noto_Serif, Noto_Serif_Thai } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
-// Noto Sans covers Pali diacritics (ā ṃ ñ ṭ ḍ ṇ ḷ); Noto Sans Thai covers Thai.
-// globals.css combines them into --font-sans, and the serifs, which set his replies, into --font-serif.
+// Inter Tight sets the app's own words and DM Serif Display its headlines. Noto Sans covers any Pali
+// diacritic (ā ṃ ñ ṭ ḍ ṇ ḷ) they lack, and Noto Sans Thai covers Thai. globals.css combines them into
+// --font-sans and --font-display, and the serifs, which set his replies, into --font-serif.
+const interTight = Inter_Tight({
+  variable: "--font-inter-tight",
+  subsets: ["latin", "latin-ext"],
+});
+
+const dmSerif = DM_Serif_Display({
+  variable: "--font-dm-serif",
+  weight: "400",
+  subsets: ["latin", "latin-ext"],
+});
+
 const notoSans = Noto_Sans({
   variable: "--font-noto-sans",
   subsets: ["latin", "latin-ext"],
@@ -47,7 +59,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${notoSans.variable} ${notoThai.variable} ${notoSerif.variable} ${notoSerifThai.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${interTight.variable} ${dmSerif.variable} ${notoSans.variable} ${notoThai.variable} ${notoSerif.variable} ${notoSerifThai.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <TooltipProvider>{children}</TooltipProvider>
