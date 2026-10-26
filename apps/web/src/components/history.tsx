@@ -49,9 +49,10 @@ export function History({ chats, current, disabled, onOpen, onNew, onDelete, foo
                 onNew();
                 done();
               }}
+              className="h-10 justify-between px-3 font-medium shadow-[0_0_0_1px_var(--foreground)] hover:bg-hero"
             >
-              <SquarePenIcon />
               <span>New conversation</span>
+              <SquarePenIcon />
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -60,7 +61,7 @@ export function History({ chats, current, disabled, onOpen, onNew, onDelete, foo
         {chats.length === 0 && <p className="px-4 py-2 text-xs text-muted-foreground">Your conversations will show here.</p>}
         {groups(chats, now).map((group) => (
           <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[0.6875rem] tracking-[0.08em] text-muted-foreground uppercase">{group.label}</SidebarGroupLabel>
             <SidebarMenu>
               {group.chats.map((chat) => {
                 const asking = confirm === chat.id;
@@ -70,6 +71,7 @@ export function History({ chats, current, disabled, onOpen, onNew, onDelete, foo
                       isActive={chat.id === current}
                       disabled={disabled}
                       title={chat.title}
+                      className="data-active:bg-card data-active:shadow-[0_0_0_1px_var(--sidebar-border)]"
                       onClick={() => {
                         onOpen(chat.id);
                         done();

@@ -19,17 +19,16 @@ export function Mark({ className }: { className?: string }) {
   );
 }
 
-// The page: the conversations in a sidebar (a drawer on a phone), then the chat in a column with its
-// bar. The loading page renders it too, with an empty sidebar, so nothing moves once the chat loads.
+// The page: the conversations in a sidebar (a drawer on a phone), then the bar across the top and the
+// chat under it, which sets its own column. The loading page renders it too, with an empty sidebar,
+// so nothing moves once the chat loads.
 export function Frame({ sidebar, onNew, children }: { sidebar?: ReactNode; onNew?: () => void; children?: ReactNode }) {
   return (
     <SidebarProvider className="h-svh">
       {sidebar ?? <Sidebar />}
       <SidebarInset className="min-h-0">
-        <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 pb-3">
-          <TopBar onNew={onNew} />
-          {children}
-        </div>
+        <TopBar onNew={onNew} />
+        {children}
       </SidebarInset>
     </SidebarProvider>
   );
@@ -39,29 +38,32 @@ export function Frame({ sidebar, onNew, children }: { sidebar?: ReactNode; onNew
 // onNew (nothing to clear, or a reply on its way) the fresh start is disabled.
 function TopBar({ onNew }: { onNew?: () => void }) {
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-2 px-3 md:px-4">
       <div className="flex items-center gap-1.5">
         <Tooltip>
           <TooltipTrigger asChild>
-            <SidebarTrigger className="-ml-2" />
+            <SidebarTrigger />
           </TooltipTrigger>
           <TooltipContent>Conversations</TooltipContent>
         </Tooltip>
-        <h1 className="flex items-center gap-2 font-serif text-[0.95rem] font-medium">
-          <Mark className="size-5 text-chart-3" />
+        <h1 className="flex items-center gap-2 text-xl font-semibold tracking-[-0.045em]">
+          <Mark className="size-6" />
           Buddha GPT
         </h1>
       </div>
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-1.5">
         <HealthStatus />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" disabled={!onNew} onClick={onNew} aria-label="New conversation">
-              <SquarePenIcon />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>New conversation</TooltipContent>
-        </Tooltip>
+        <Button
+          variant="outline"
+          size="lg"
+          disabled={!onNew}
+          onClick={onNew}
+          aria-label="New conversation"
+          className="gap-2.5 border-foreground bg-transparent px-3 hover:bg-hero"
+        >
+          <span className="hidden sm:inline">New conversation</span>
+          <SquarePenIcon />
+        </Button>
       </div>
     </header>
   );

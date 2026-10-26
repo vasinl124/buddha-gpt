@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOutIcon } from "lucide-react";
+import { ArrowRightIcon, LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ export function Account({ user, onSignIn, onSignOut }: AccountProps) {
   if (user) {
     return (
       <div className="flex items-center gap-2.5 px-2 pb-1">
-        <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-xs font-medium uppercase">
+        <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-medium text-background uppercase">
           {user.username[0]}
         </span>
         <div className="min-w-0 flex-1">
@@ -40,8 +40,13 @@ export function Account({ user, onSignIn, onSignOut }: AccountProps) {
     return (
       <div className="flex flex-col gap-2 px-2 pb-1">
         <p className="text-xs text-muted-foreground">Kept in this browser only.</p>
-        <Button variant="outline" size="sm" onClick={() => setMode("login")}>
+        <Button
+          variant="outline"
+          onClick={() => setMode("login")}
+          className="h-9 justify-between border-foreground bg-transparent px-3 text-[0.8125rem] hover:bg-hero"
+        >
           Sign in to keep them anywhere
+          <ArrowRightIcon />
         </Button>
       </div>
     );

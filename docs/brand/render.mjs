@@ -1,6 +1,6 @@
 // Renders the brand's PNGs from the wheel (mark.svg, icon.svg): the README's lockups, the link
 // preview and GitHub's social preview, and the app's icons. Playwright drives the installed Chrome,
-// so the type is the app's own (Noto Serif, Noto Sans); ImageMagick packs the favicon.
+// so the type is the app's own (Inter Tight, DM Serif Display); ImageMagick packs the favicon.
 //
 //   pnpm brand
 import { execFileSync } from "node:child_process";
@@ -9,40 +9,42 @@ import { chromium } from "playwright";
 
 const BRAND = new URL(".", import.meta.url).pathname;
 const APP = new URL("../../apps/web/src/app/", import.meta.url).pathname;
-const COLORS = { cream: "#FEFCF3", ink: "#24180B", muted: "#72604A", amber: "#D48E00", night: "#150E06", moon: "#F6F2E3" };
+// the app's ink, muted ink and yellow (globals.css); moon is the wheel and name in GitHub's dark mode
+const COLORS = { ink: "#1C1B15", muted: "#626055", yellow: "#FEF1A1", moon: "#F2F1EA" };
 const mark = readFileSync(`${BRAND}mark.svg`, "utf8");
 const icon = readFileSync(`${BRAND}icon.svg`, "utf8");
 
-const FONTS = `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500&family=Noto+Serif:ital,wght@0,500;1,400&display=block">`;
+const FONTS = `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;600&family=DM+Serif+Display&display=block">`;
 const page = (body, css = "") =>
-  `<!doctype html><html><head>${FONTS}<style>*{margin:0}body{font-family:"Noto Sans",sans-serif}
-  .serif{font-family:"Noto Serif",serif}${css}</style></head><body>${body}</body></html>`;
+  `<!doctype html><html><head>${FONTS}<style>*{margin:0}body{font-family:"Inter Tight",sans-serif}
+  .serif{font-family:"DM Serif Display",serif}${css}</style></head><body>${body}</body></html>`;
 
 // the mark beside the name, for the README's header in light and dark mode
 const lockup = (text) =>
   page(
-    `<div class="l"><div class="m">${mark}</div><span class="serif">Buddha GPT</span></div>`,
-    `.l{display:inline-flex;align-items:center;gap:22px;padding:8px 12px}.m{width:84px;height:84px}
-    .l span{font-size:60px;font-weight:500;letter-spacing:-0.01em;white-space:nowrap;color:${text}}`,
+    `<div class="l"><div class="m">${mark.replaceAll(COLORS.ink, text)}</div><span>Buddha GPT</span></div>`,
+    `.l{display:inline-flex;align-items:center;gap:20px;padding:8px 12px}.m{width:84px;height:84px}
+    .l span{font-size:64px;font-weight:600;letter-spacing:-0.045em;white-space:nowrap;color:${text}}`,
   );
 
-// the card a shared link shows: the mark, the name, what it does, and a line of goodwill
+// the card a shared link shows, on the welcome page's yellow: the mark, the name, what it does, and
+// a line of goodwill
 const card = (w, h) =>
   page(
     `<div class="c"><div class="m">${mark}</div><div class="t">
-      <h1 class="serif">Buddha GPT</h1>
+      <h1>Buddha GPT</h1>
       <p>Talk with the Buddha in English, Thai or Pali.<br>Every quote is real, from the Pali Canon.</p>
       <div class="rule"></div><p class="pi serif">Sabbasattā bhavantu sukhitattā</p></div></div>`,
-    `.c{width:${w}px;height:${h}px;background:${COLORS.cream};display:flex;align-items:center;gap:64px;padding:0 88px;box-sizing:border-box}
-    .m{width:260px;height:260px;flex:none}.t h1{font-size:94px;font-weight:500;letter-spacing:-0.015em;color:${COLORS.ink};line-height:1.05}
-    .t p{font-size:29px;line-height:1.5;color:${COLORS.muted};margin-top:22px;white-space:nowrap}.rule{width:56px;height:3px;background:${COLORS.amber};margin-top:34px}
-    .t .pi{font-style:italic;color:${COLORS.amber};font-size:30px;margin-top:18px}`,
+    `.c{width:${w}px;height:${h}px;background:${COLORS.yellow};display:flex;align-items:center;gap:64px;padding:0 88px;box-sizing:border-box}
+    .m{width:260px;height:260px;flex:none}.t h1{font-size:100px;font-weight:600;letter-spacing:-0.045em;color:${COLORS.ink};line-height:1.05}
+    .t p{font-size:29px;line-height:1.5;color:${COLORS.muted};margin-top:22px;white-space:nowrap}.rule{width:56px;height:3px;background:${COLORS.ink};margin-top:34px}
+    .t .pi{color:${COLORS.ink};font-size:34px;margin-top:18px}`,
   );
 
 // the home-screen icon: the seal's wheel, full bleed, since the phone rounds the corners
 const touch = page(
   `<div class="a">${icon.replace(/<circle cx="24" cy="24" r="24"[^>]*\/>/, "")}</div>`,
-  `.a{width:180px;height:180px;background:${COLORS.amber};display:grid;place-items:center}.a svg{width:150px;height:150px}`,
+  `.a{width:180px;height:180px;background:${COLORS.yellow};display:grid;place-items:center}.a svg{width:150px;height:150px}`,
 );
 
 const shots = [
