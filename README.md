@@ -22,7 +22,14 @@ Ask about the Dhamma, or about what weighs on you. The Buddha answers in your la
 
 ## Why I built this
 
-I went to a meditation camp, and somewhere in the sitting a thought came up: the Buddha passed away some 2,500 years ago, so nobody can ask him anything anymore. What remains is the Tipiṭaka, the Pali Canon: his teachings as his monks kept them, recited together after his death and written down centuries later. And today there's a way to talk with a body of text: retrieval-augmented generation (RAG).
+At the beginning of October I attended a Vipassana meditation course at [Dhamma Sirī](http://siri.dhamma.org/), the Southwest Vipassana Meditation Center in Kaufman, Texas. Somewhere in the sitting a thought came up: the Buddha passed away some 2,500 years ago, so nobody can ask him anything anymore. What remains is the Tipiṭaka, the Pali Canon: his teachings as his monks kept them, recited together after his death and written down centuries later. And today there's a way to talk with a body of text: retrieval-augmented generation (RAG).
+
+<p align="center">
+  <img src="docs/media/dhamma-siri-sign.jpg" width="32%" alt="Max beside the Southwest Vipassana Meditation Center's sign, which carries the Dhamma wheel">
+  <img src="docs/media/dhamma-siri-hall.jpg" width="32%" alt="The center's round meditation hall at sunset">
+  <img src="docs/media/dhamma-siri-residence.jpg" width="32%" alt="A residence building at the center at dusk">
+</p>
+<p align="center"><sub>Dhamma Sirī, in October. Its sign carries the Dhamma wheel, the same wheel as this project's mark.</sub></p>
 
 It's the same pattern I'd built at my previous company, for legal AI and for chatbots over internal policy documents. So this was the project to relearn that whole stack end to end: a Go backend, the Vercel AI SDK, and a RAG pipeline put together into a working chatbot. Only the corpus changes, and this one is harder in good ways.
 

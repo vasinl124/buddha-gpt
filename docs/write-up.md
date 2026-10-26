@@ -2,7 +2,9 @@
 
 > Draft for the blog post (PRD §14). Numbers are from the build; edit the voice before publishing.
 
-At a meditation camp, somewhere in the sitting, a thought came up: the Buddha passed away some 2,500 years ago, so nobody can ask him anything anymore. What remains is the Tipiṭaka, his teachings as his monks kept them. And we now have a way to talk with a body of text: retrieval-augmented generation. I'd built that pattern at my previous company, for legal AI and for chatbots over internal policy documents, with a Go backend and the Vercel AI SDK, and I wanted to relearn the whole stack end to end. So over one weekend I built it again, with the canon as the corpus: its discourses in Pali, the original, and in English and Thai, searchable in all three.
+At the beginning of October I attended a Vipassana course at Dhamma Sirī, the Southwest Vipassana Meditation Center in Kaufman, Texas. Somewhere in the sitting, a thought came up: the Buddha passed away some 2,500 years ago, so nobody can ask him anything anymore. What remains is the Tipiṭaka, his teachings as his monks kept them. And we now have a way to talk with a body of text: retrieval-augmented generation. I'd built that pattern at my previous company, for legal AI and for chatbots over internal policy documents, with a Go backend and the Vercel AI SDK, and I wanted to relearn the whole stack end to end. So over one weekend I built it again, with the canon as the corpus: its discourses in Pali, the original, and in English and Thai, searchable in all three.
+
+![Beside the sign at Dhamma Sirī, the Southwest Vipassana Meditation Center in Kaufman, Texas](media/dhamma-siri-sign.jpg)
 
 The internet is full of things the Buddha never said. "Peace comes from within, do not seek it without" is on a thousand posters, and it isn't in the suttas. So when I set out to build an AI you can talk to as the Buddha, in English, Thai or Pali, the hard part wasn't the chat. It was making sure the app never adds to that pile.
 
