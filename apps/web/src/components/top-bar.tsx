@@ -1,6 +1,8 @@
 import { SquarePenIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { HealthStatus } from "@/components/health-status";
 import { Button } from "@/components/ui/button";
+import { Sidebar, SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // The Dhamma wheel, the teaching set in motion: the app's mark, never an image of the Buddha (PRD §4).
@@ -16,15 +18,39 @@ export function Mark({ className }: { className?: string }) {
   );
 }
 
-// The bar over the chat: the name, the services' health and a fresh start. Without onNew (nothing to
-// clear, or a reply on its way) the fresh start is disabled.
-export function TopBar({ onNew }: { onNew?: () => void }) {
+// The page: the conversations in a sidebar (a drawer on a phone), then the chat in a column with its
+// bar. The loading page renders it too, with an empty sidebar, so nothing moves once the chat loads.
+export function Frame({ sidebar, onNew, children }: { sidebar?: ReactNode; onNew?: () => void; children?: ReactNode }) {
+  return (
+    <SidebarProvider className="h-svh">
+      {sidebar ?? <Sidebar />}
+      <SidebarInset className="min-h-0">
+        <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col px-4 pb-3">
+          <TopBar onNew={onNew} />
+          {children}
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}
+
+// The bar over the chat: the conversations, the name, the services' health and a fresh start. Without
+// onNew (nothing to clear, or a reply on its way) the fresh start is disabled.
+function TopBar({ onNew }: { onNew?: () => void }) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between">
-      <h1 className="flex items-center gap-2 text-sm font-medium">
-        <Mark className="size-5 text-chart-3" />
-        Buddha GPT
-      </h1>
+      <div className="flex items-center gap-1.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SidebarTrigger className="-ml-2" />
+          </TooltipTrigger>
+          <TooltipContent>Conversations</TooltipContent>
+        </Tooltip>
+        <h1 className="flex items-center gap-2 text-sm font-medium">
+          <Mark className="size-5 text-chart-3" />
+          Buddha GPT
+        </h1>
+      </div>
       <div className="flex items-center gap-0.5">
         <HealthStatus />
         <Tooltip>

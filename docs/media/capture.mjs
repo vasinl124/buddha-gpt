@@ -27,6 +27,8 @@ const SHOTS = [
   { file: "decline.png", text: "ขอเลขเด็ดงวดนี้หน่อย" },
   { file: "crisis.png", text: "I don't want to live anymore" },
 ];
+// the history: three conversations in the sidebar at a laptop's width, the newest open
+const HISTORY = ["ทุกข์คืออะไร", "How do I stop being angry?", "What are the four noble truths?"];
 
 // the demo: one conversation, a caption per scene
 const SCENES = [
@@ -68,6 +70,48 @@ async function screenshots() {
     await page.close();
   }
   await context.close();
+  if (!names.length || names.includes("history")) await history();
+}
+
+async function history() {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
+  const page = await open(context);
+  for (const [i, text] of HISTORY.entries()) {
+    if (i) await page.getByRole("button", { name: "New conversation" }).first().click();
+    await ask(page, text);
+  }
+  await page.mouse.move(0, 0); // no list item left in its hover state
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: join(OUT, "history.png") });
+  console.log("wrote docs/media/history.png");
+
+  // then a clip of the sidebar at work: open the others, start anew, go back, delete one
+  const dir = mkdtempSync(join(tmpdir(), "buddha-history-"));
+  const frames = await record(page, dir, { maxWidth: 1280, maxHeight: 800 });
+  const item = (title) => page.locator("[data-sidebar=menu-item]", { hasText: title });
+  const pause = () => page.waitForTimeout(2200);
+  await pause();
+  for (const title of HISTORY.slice(0, 2).reverse()) {
+    await item(title).getByRole("button", { name: title }).click();
+    await pause();
+  }
+  await page.getByRole("button", { name: "New conversation" }).first().click();
+  await pause();
+  await item(HISTORY[2]).getByRole("button", { name: HISTORY[2] }).click();
+  await pause();
+  await item(HISTORY[1]).getByRole("button", { name: "Delete conversation" }).click(); // asks once more
+  await page.waitForTimeout(1500);
+  await page.getByRole("button", { name: "Delete this conversation" }).click();
+  await pause();
+  const list = await frames.stop();
+  ffmpeg([
+    "-f", "concat", "-safe", "0", "-i", list, "-vf",
+    "fps=8,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=5",
+    join(OUT, "history.gif"),
+  ]);
+  rmSync(dir, { recursive: true });
+  console.log(`wrote docs/media/history.gif (${(statSync(join(OUT, "history.gif")).size / 1e6).toFixed(1)} MB)`);
+  await context.close();
 }
 
 async function demo() {
@@ -77,7 +121,7 @@ async function demo() {
   const frames = await record(page, dir);
   // a caption bar above the app, which keeps its full height below it
   await page.addStyleTag({
-    content: `body { padding-top: 44px; } main { height: calc(100svh - 44px) !important; }
+    content: `body { padding-top: 44px; } [data-slot=sidebar-wrapper] { height: calc(100svh - 44px) !important; min-height: 0 !important; }
       #demo-caption { position: fixed; inset: 0 0 auto 0; height: 44px; display: flex; align-items: center;
         justify-content: center; background: #18181b; color: #fafafa; font: 500 15px system-ui, sans-serif; }`,
   });
@@ -118,7 +162,7 @@ async function demo() {
 
 // Records the page with Chrome's screencast: a frame on every repaint, each shown until the next.
 // stop() writes the ffmpeg concat list that replays them with their real timing.
-async function record(page, dir) {
+async function record(page, dir, size = { maxWidth: 720, maxHeight: 900 }) {
   const cdp = await page.context().newCDPSession(page);
   const frames = [];
   cdp.on("Page.screencastFrame", ({ data, metadata, sessionId }) => {
@@ -127,7 +171,7 @@ async function record(page, dir) {
     frames.push({ file, at: metadata.timestamp });
     cdp.send("Page.screencastFrameAck", { sessionId }).catch(() => {});
   });
-  await cdp.send("Page.startScreencast", { format: "jpeg", quality: 90, maxWidth: 720, maxHeight: 900 });
+  await cdp.send("Page.startScreencast", { format: "jpeg", quality: 90, ...size });
   return {
     async stop() {
       await cdp.send("Page.stopScreencast");
