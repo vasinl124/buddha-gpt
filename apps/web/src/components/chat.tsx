@@ -10,6 +10,7 @@ import { Conversation, ConversationContent, ConversationScrollButton } from "@/c
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Suggestion } from "@/components/ai-elements/suggestion";
 import { Account } from "@/components/account";
+import { BuiltBy } from "@/components/built-by";
 import { History } from "@/components/history";
 import { SourceCards } from "@/components/source-cards";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -209,7 +210,7 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
         <Welcome />
       ) : (
         <Conversation className="min-h-0 flex-1">
-          <ConversationContent className="mx-auto w-full max-w-2xl px-0 pt-2 pb-6">
+          <ConversationContent className="mx-auto w-full max-w-2xl px-0 pt-2 pb-14 min-[1440px]:pb-6">
             {messages.map((m, i) => (
               <Turn
                 key={m.id}
@@ -242,7 +243,7 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
       )}
 
       <form
-        className="mx-auto w-full max-w-2xl"
+        className={`relative mx-auto w-full max-w-2xl ${empty ? "max-[1439px]:mt-8" : ""}`}
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
@@ -279,6 +280,7 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
             )}
           </InputGroupAddon>
         </InputGroup>
+        <BuiltBy />
       </form>
       {empty && (
         <div className="mb-auto flex flex-wrap items-center justify-center gap-2 pt-2">
