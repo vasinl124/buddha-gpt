@@ -5,12 +5,13 @@ import Image from "next/image";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-const MAIL = "mailto:vasin.limsukhawat@gmail.com?subject=About%20Buddha%20GPT";
+// the contact section of his site, which has his email; a new tab, so the conversation stays
+const CONTACT = "https://maxlim.xyz/#contact";
 const ENTER = "animate-in fade-in-0 slide-in-from-bottom-1 duration-300 ease-out-quart";
 // the question box's hard shadow, smaller
 const LIFT = "border border-foreground bg-card shadow-[0_4px_0_var(--hero-shadow)]";
 
-// Who made the app, and a way to write to him, in the lower right. Where the screen is wide enough
+// Who made the app, and a way to reach him, in the lower right. Where the screen is wide enough
 // to leave room beside the question box, the card sits in the corner; on smaller screens a pill sits
 // over the box's right edge and opens the card, so neither covers the box or the Ask button.
 export function BuiltBy() {
@@ -47,7 +48,7 @@ function Card({ onClose, focus }: { onClose: () => void; focus: boolean }) {
         </Button>
       </div>
       <Button asChild size="sm" className="mt-3 w-full justify-between">
-        <a href={MAIL} autoFocus={focus}>
+        <a href={CONTACT} target="_blank" rel="noreferrer" autoFocus={focus}>
           Contact me
           <ArrowRightIcon />
         </a>
