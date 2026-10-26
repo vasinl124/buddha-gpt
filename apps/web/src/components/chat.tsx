@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
 import { Mark, TopBar } from "@/components/top-bar";
-import { quotesToThaiScript } from "@/lib/pali";
+import { quotesToThaiScript, toThaiScript } from "@/lib/pali";
 
 type BuddhaMessage = UIMessage<never, ChatData>;
 
@@ -28,6 +28,14 @@ const THAI = /[฀-๿]/;
 // the agent releases a reply a sentence at a time: its words fade in as they arrive
 const WORDS: AnimateOptions = { animation: "blurIn", duration: 300, easing: "var(--ease-out-quart)" };
 const ENTER = "animate-in fade-in-0 duration-300 ease-out-quart";
+// While he gathers his words: goodwill from the Mettā Sutta (Snp 1.8), verbatim from VRI's Pali,
+// with a plain gloss. Only wishes for the person's good, since the line shows before the agent knows
+// whether the message is a crisis; a crisis turn's dot has no words at all.
+const BLESSINGS = [
+  { pi: "Sabbasattā bhavantu sukhitattā", en: "may all beings be happy at heart", th: "ขอสัตว์ทั้งปวงจงมีความสุขเถิด" },
+  { pi: "Sukhino va khemino hontu", en: "may they be happy and safe", th: "ขอให้เป็นสุข มีความเกษมเถิด" },
+  { pi: "Mettañca sabbalokasmi", en: "goodwill for the whole world", th: "เมตตาไปทั่วทั้งโลก" },
+];
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -95,7 +103,7 @@ export function Chat() {
               {waiting && last?.role === "user" && (
                 <Message from="assistant" className={ENTER}>
                   <MessageContent>
-                    <Pending thai={THAI.test(textOf(last))} />
+                    <Pending thai={THAI.test(textOf(last))} seed={last.id} />
                   </MessageContent>
                 </Message>
               )}
@@ -209,7 +217,7 @@ function Turn({ message, question, fresh, streaming, waiting }: TurnProps) {
           </Badge>
         )}
         {waiting ? (
-          <Pending thai={thaiScript} />
+          <Pending thai={thaiScript} seed={question?.id ?? message.id} quiet={!!crisis} />
         ) : (
           // his words in the serif: the app's own chrome stays in the sans
           <div lang={pali ? "pi" : undefined} className="font-serif text-base leading-7">
@@ -225,14 +233,24 @@ function Turn({ message, question, fresh, streaming, waiting }: TurnProps) {
   );
 }
 
-// Holds a reply's place until its first words arrive: a breath before he speaks. No words about
-// searching, since the person is talking to him.
-function Pending({ thai }: { thai: boolean }) {
+// Holds a reply's place until its first words arrive: a breath before he speaks, and a line of
+// goodwill, never words about searching. The question's id picks the line, so it stays put while the
+// placeholder moves into the reply.
+function Pending({ thai, seed, quiet = false }: { thai: boolean; seed: string; quiet?: boolean }) {
+  const line = BLESSINGS[[...seed].reduce((n, c) => n + c.charCodeAt(0), 0) % BLESSINGS.length];
   return (
-    <p role="status" className="flex h-7 items-center">
-      <span aria-hidden className="size-2 animate-breathe rounded-full bg-primary" />
+    <div role="status" className="flex min-h-7 items-start gap-2.5">
+      <span aria-hidden className="mt-2.5 size-2 shrink-0 animate-breathe rounded-full bg-primary" />
+      {!quiet && (
+        <p aria-hidden className="flex flex-col">
+          <span lang="pi" className={`font-serif text-[0.9375rem] leading-7 text-foreground/75 ${thai ? "" : "italic"}`}>
+            {thai ? toThaiScript(line.pi) : line.pi}
+          </span>
+          <span className="text-xs text-muted-foreground">{thai ? line.th : line.en}</span>
+        </p>
+      )}
       <span className="sr-only">{thai ? "กำลังตอบ" : "Replying"}</span>
-    </p>
+    </div>
   );
 }
 
