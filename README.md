@@ -1,28 +1,124 @@
-# Buddha GPT
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lockup-dark.png">
+    <img src="docs/brand/lockup-light.png" alt="Buddha GPT" width="440">
+  </picture>
+</p>
 
-Talk with the Buddha in English, Thai or Pali. He answers in plain speech, and Sources under each reply opens the real passages he drew on, in Pali, Thai and English. He never invents scripture.
+<p align="center">
+  <b>Talk with the Buddha in English, Thai or Pali. He answers in plain speech, and every quote is real.</b>
+</p>
+
+<p align="center">
+  <a href="https://web-production-d5670.up.railway.app"><b>Try it live</b></a> ·
+  <a href="docs/media/demo.mp4">Watch the demo video</a> ·
+  <a href="docs/write-up.md">Read the write-up</a> ·
+  <a href="docs/PRD.md">Read the design</a>
+</p>
 
 ![A Thai question, the same question asked in Pali, a popular quote checked, a lottery request and a crisis message](docs/media/demo.gif)
 
-[Watch the demo as a video](docs/media/demo.mp4). The design and the plan are in [docs/PRD.md](docs/PRD.md).
+Ask about the Dhamma, or about what weighs on you. The Buddha answers in your language, drawing on the Pali Canon, and **Sources** under each reply opens the passages he drew on, word for word from the canon in Pali, Thai and English. The model never writes scripture: it chooses passages, and code quotes them.
 
-| Sources opens the passages behind an answer, here in Pali, Thai and English | Ask in Thai, and he answers in Thai |
+I built it over one weekend as a portfolio project, to brush up on the fundamentals end to end: retrieval-augmented generation done carefully, a Go data service, a TypeScript agent, a Next.js app, Thai and Pali text processing, guardrails that live in code, evals that gate pull requests, accounts, and a deploy on Railway.
+
+## What it does
+
+| Sources opens the passages behind an answer, in Pali, Thai and English | Ask in Thai, and he answers in Thai |
 |---|---|
 | ![An answer about the four noble truths, with its sources open](docs/media/answer.png) | ![A Thai question answered in Thai with the noble truth of suffering, its sources folded below](docs/media/thai.png) |
-| **Ask for the Pali, and he answers in the canon's own words, here in Thai script** | **A popular quote, checked: a similar teaching, in different words** |
+| **Ask for the Pali, and he answers in the canon's own words, here in Thai script** | **A popular quote, checked against the texts** |
 | ![Asked for the Pali, the reply is the canon's own Pali, shown in Thai script](docs/media/pali.png) | ![Asked whether the Buddha said a popular quote, the app checks the texts and says what they hold](docs/media/quote.png) |
 | **Lottery numbers get a kind no, with a teaching** | **A crisis message gets the right numbers at once** |
 | ![A Thai lottery request gets a kind no, its source folded below](docs/media/decline.png) | ![A crisis message answered with Thailand's hotline numbers](docs/media/crisis.png) |
 
-**Past conversations stay in a sidebar (a drawer on a phone), kept in this browser, or in your account once you sign in**
+**On a phone.** While he answers, a line of goodwill from the Mettā Sutta holds his reply's place: never "searching…", since you're talking to the Buddha. Past conversations live in a drawer.
+
+| While he answers | His reply | Your conversations |
+|---|---|---|
+| ![The question sent, and a line of the Mettā Sutta while the reply is on its way](docs/media/waiting.png) | ![A reply about anger on a phone, its sources folded below](docs/media/phone.png) | ![The drawer of conversations, one in English and one in Thai](docs/media/drawer.png) |
+
+**On a laptop,** the conversations sit in a sidebar, grouped by day as in ChatGPT. They stay in your browser, or in your account once you sign in with a username and password, and then follow you to any device.
 
 ![Three conversations in the sidebar, grouped under Today, with the newest open](docs/media/history.png)
 
-[See the sidebar at work](docs/media/history.gif): opening conversations, starting a new one and deleting one. [See signing in](docs/media/account.gif): this browser's conversations move into the account and stay after a reload.
+| Signing up says plainly where your conversations will be kept | One dot shows the health of every service |
+|---|---|
+| ![The sign-up form at the foot of the sidebar, with a note on where conversations are kept](docs/media/signup.png) | ![The status dot's tooltip: agent, core and database all up](docs/media/status.png) |
 
-These replies come from DeepSeek V4 Flash, the default model. Real replies need an `OPENROUTER_API_KEY`; without one, a mock model shows the whole flow. `pnpm media` re-captures these pictures and the demo from the running app.
+[See the sidebar at work](docs/media/history.gif) · [See signing in](docs/media/account.gif) · [See the empty page](docs/media/welcome.png)
+
+## How it works
+
+### The rule: the model chooses, code quotes
+
+The internet is full of things the Buddha never said, and an AI speaking in his voice could add to the pile. So the language model never writes scripture. It picks passages by ID and writes the reply around them; code fills every card and every quote from the database, verbatim. In the Pali Canon itself (AN 2.23), whoever presents as the Buddha's words what he never said misrepresents him, and the design takes that literally.
+
+### Architecture
 
 ![Every service and how it talks to the others](docs/services.svg)
+
+| Service | Built with | Owns |
+|---|---|---|
+| Web | Next.js 16, shadcn/ui, Tailwind 4, AI Elements | Pages only: a thin client with no business logic |
+| Agent | Node 22, Express 5, Vercel AI SDK 7, OpenRouter | The chat turn: the guard, retrieval, the model call and the checks; accounts' cookies and rate limits |
+| Core | Go 1.26, `net/http`, pgx | The data: the canon, vectors, hybrid search, accounts and saved conversations |
+| Database | Postgres 18 with pgvector and `pg_trgm` | Everything in one place: no separate vector database |
+
+The browser talks only to the agent, the agent asks Go for passages, and Go owns Postgres. The reply streams back over SSE, sentence by sentence.
+
+### One chat turn
+
+![One chat turn, step by step: retrieval, generation, then checks before anything is shown](docs/chat-turn.svg)
+
+1. **Route.** Crisis phrases are checked in code first. Then a small structured-output call (the guard) routes the turn (crisis, decline, redirect, chat or answer), rewrites a follow-up like "and the second one?" into a standalone query, and notes the reply language you asked for, if any.
+2. **Retrieve.** Go runs hybrid search: pgvector cosine on `baai/bge-m3` embeddings plus trigram word similarity, fused with Reciprocal Rank Fusion. The model gets the top eight passages with their IDs, and tools to search again or read the paragraphs around one.
+3. **Generate.** The model writes the reply and cites with markers like `[[cite:sn56.11#en5]]`.
+4. **Check while streaming.** A sentence gate holds everything until the first valid citation, strips citations to passages that weren't retrieved, drops any sentence that quotes words no passage contains, and removes made-up Pali.
+5. **Quote.** When the reply ends, the agent asks Go for cards for exactly the cited IDs: the passage in every language whose paragraphs line up, with credits and a link.
+
+### Thai and Pali
+
+- **Thai has no spaces between words,** so full-text search has nothing to split on. Search uses trigrams over a folded copy of each paragraph, with tone marks and spacing normalized, so a Thai phrase finds its passage however either side was spaced.
+- **The Royal Thai translation** comes as 45 volumes of PDFs whose fonts store vowels as private-use glyphs, numbered by paragraph rather than by sutta. Every sutta's start is found by matching its opening words against SuttaCentral's ID-keyed copy; that places 3,157 of 3,233 suttas, and an unplaceable one is left out rather than shown under the wrong name.
+- **In Pali mode the reply *is* scripture,** so the model may write only `[[quote:ID]]` markers, and code puts in VRI's Chaṭṭha Saṅgāyana text. In a Thai conversation the Pali shows in Thai script, as Thai editions print it.
+
+The canon in the database: 23,478 paragraphs of Pali (3,399 suttas), 17,210 of English (1,066 suttas) and 23,211 of Thai (3,157 suttas), with 40,421 embeddings for the English and Thai.
+
+### Safety lives in code, not in a secret prompt
+
+The prompts and the policy are public on purpose, so every guardrail holds even when someone has read them.
+
+- **Crisis:** plain words and Thailand's hotlines (1323, 1669, 1300, 1387, 191), streamed before the reply from `policy.yaml`. The model is never trusted with a phone number.
+- **The Vakkali problem:** naive RAG would show a person in crisis the suttas about monks who ended their lives. Once a conversation shows risk, search leaves those suttas out for the rest of it.
+- **Declines with a teaching:** lottery numbers get DN 1, where the Buddha abstains from fortune-telling; stock tips get AN 8.54.
+- **Fake quotes get looked up:** "Did the Buddha say…?" is searched, and code writes the verdict before the model writes a word.
+
+### Evals, not vibes
+
+`buddha eval` plays 42 cases, half in Thai: doctrine, grief, follow-ups, Pali mode, fake quotes, declines, crises and prompt injection. The gates include zero fabricated quotes or Pali, citations that point at retrieved passages at least 98% of the time, every crisis routed with the right numbers, the right reply language, and faithfulness of at least 4 out of 5 as judged by a model from another family. GitHub Actions runs them on any pull request that touches the prompts, the policy, the agent or retrieval. Two gates aren't met yet: Recall@8 (the expected sutta in the top eight, 85% of the time) misses for every model until retrieval is tuned, and the default model narrowly misses faithfulness.
+
+### Accounts, history and limits
+
+- **Guests** keep their last 50 conversations in `localStorage`, kept in step across tabs; if storage fills, the oldest go first.
+- **Accounts** are a username and a password, hashed in Go with the standard library's PBKDF2-SHA256 at 600,000 rounds. The session lives in an HttpOnly cookie, stored server-side only as a hash, and signing in moves the browser's conversations into the account.
+- **Limits** protect the model bill: 30 chat turns an hour per address for a guest and 100 signed in, sign-ins limited per address in the agent, and wrong passwords limited per username in the core.
+
+### Hosting on Railway
+
+![The hosted app on Railway: one public domain](docs/railway.svg)
+
+Four services: `db` (the `pgvector/pgvector:pg18` image on a volume), `core`, `agent` and `web`, each built from the repo root with its own Dockerfile. Two lessons from the deploy:
+
+- **Each `up.railway.app` domain is a site of its own,** so Safari wouldn't send the agent's session cookie to the web app. Only `web` is public: it proxies `/agent/*` to the agent over the private network, which makes the cookie first-party. The stream says `Cache-Control: no-transform`, so the proxy doesn't gzip it and hold the words back.
+- **Railway's edge sends `X-Forwarded-For: <visitor>, <edge>`.** Trusting one hop gave every visitor the edge's address, and so one shared rate limit; the agent trusts two.
+
+### Decisions worth talking about
+
+- **One Postgres** for the canon, the vectors and the accounts: hybrid search's vector and trigram legs are two queries on the same tables, fused in Go, with no second database to keep in step.
+- **A cheap model, chosen with eval numbers in hand:** DeepSeek V4 Flash costs about a third of Claude Haiku 5.5 for this app. It narrowly misses the faithfulness gate (3.9 against 4.0), which Haiku passes, one setting away; for a free demo, cost won.
+- **Respecting a source's wishes:** SuttaCentral's translator asked AI chatbots not to use those translations, so the English is Ṭhānissaro Bhikkhu's.
+- **Built phase by phase:** every change was a pull request with CI and an AI code review, and the repo's [AGENTS.md](AGENTS.md) holds the conventions.
 
 ## Run it locally
 
@@ -52,9 +148,11 @@ pnpm search "four noble truths"
 
 Then ask a question on the page. Without `OPENROUTER_API_KEY`, a mock model answers by citing the top passages, so you can try the whole turn first, and search is keyword-only until the embeddings exist.
 
+These replies come from DeepSeek V4 Flash, the default model. `pnpm media` re-captures the pictures and the demo from the running app, and `pnpm brand` redraws the logo's images.
+
 ## Evals
 
-`evals/cases/*.jsonl` holds 42 cases, half in Thai: doctrine, life situations, follow-ups, Pali mode, a reply language asked for in the message, fake quotes, declines, crisis, don't-know and prompt injection. `buddha eval` plays them against the agent and checks the gates in PRD §10:
+`evals/cases/*.jsonl` holds the 42 cases. `buddha eval` plays them against the agent and checks the gates in PRD §10:
 
 ```bash
 EVAL_MODE=1 pnpm dev   # eval mode answers in JSON with a debug block

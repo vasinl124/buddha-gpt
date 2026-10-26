@@ -16,7 +16,8 @@
     "lint": "pnpm -r lint && pnpm -r check && cd services/core && go vet ./...",
     "test": "pnpm -r test && cd services/core && go test ./...",
     "diagram": "node docs/diagrams/services.mjs docs/services.svg && node docs/diagrams/services.mjs docs/railway.svg railway",
-    "media": "node docs/media/capture.mjs"
+    "media": "node docs/media/capture.mjs",
+    "brand": "node docs/brand/render.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",

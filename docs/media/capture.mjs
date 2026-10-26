@@ -9,6 +9,7 @@
 //   pnpm media shots answer     only the named screenshots
 //   pnpm media demo             the demo only
 //   pnpm media account          the sign-in clip, as DEMO_USER with DEMO_PASSWORD (a fresh account)
+//   pnpm media shots tour       only the tour: the welcome page, the status, signing up, and a phone
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -76,6 +77,52 @@ async function screenshots() {
   }
   await context.close();
   if (!names.length || names.includes("history")) await history();
+  if (!names.length || names.includes("tour")) await tour();
+}
+
+// The parts the other pictures don't show: the empty page, the services' status and the sign-up
+// form at a laptop's width; then a phone, as a reply is on its way, once it has come, and with the
+// drawer of conversations open.
+async function tour() {
+  const desk = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
+  let page = await open(desk);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600); // the welcome fades in
+  await page.screenshot({ path: join(OUT, "welcome.png") });
+  const dot = page.getByRole("button", { name: "All services up" });
+  await dot.hover();
+  await page.getByRole("tooltip").waitFor();
+  await page.waitForTimeout(300);
+  const at = await dot.boundingBox();
+  await page.screenshot({ path: join(OUT, "status.png"), clip: { x: at.x - 120, y: 4, width: 175, height: 128 } });
+  await page.getByRole("button", { name: "Sign in to keep them anywhere" }).click();
+  await page.getByRole("button", { name: "Create an account" }).click();
+  await page.mouse.move(640, 400);
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: join(OUT, "signup.png") });
+  await desk.close();
+  console.log("wrote docs/media/welcome.png, status.png, signup.png");
+
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  page = await open(phone);
+  const reply = page.waitForResponse((r) => r.url().endsWith("/api/chat") && r.request().method() === "POST", { timeout: 180_000 });
+  await page.getByRole("textbox", { name: "Your message" }).fill("How do I stop being angry?");
+  await page.keyboard.press("Enter");
+  await page.locator("[role=log] [role=status]").waitFor(); // goodwill holds his reply's place
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: join(OUT, "waiting.png") });
+  await (await reply).finished();
+  await page.waitForTimeout(1200);
+  await page.locator(".is-user").last().evaluate((el) => el.scrollIntoView({ block: "start" }));
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: join(OUT, "phone.png") });
+  await page.getByRole("button", { name: "New conversation" }).last().click();
+  await ask(page, "ทุกข์คืออะไร");
+  await page.getByRole("button", { name: "Toggle Sidebar" }).click();
+  await page.waitForTimeout(700); // the drawer slides in
+  await page.screenshot({ path: join(OUT, "drawer.png") });
+  await phone.close();
+  console.log("wrote docs/media/waiting.png, phone.png, drawer.png");
 }
 
 async function history() {
