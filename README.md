@@ -200,4 +200,4 @@ The source texts aren't in this repo. `pnpm sync` downloads them:
 - **Thai:** the Royal translation (ฉบับหลวง), which carries no rights statement.
 - **English:** Ṭhānissaro Bhikkhu's translations (CC BY-NC 4.0). Public-domain translations for the suttas he skipped are planned (PRD §12, phase 1b).
 
-Because of these terms, Buddha GPT is free and non-commercial.
+Because of these terms, Buddha GPT is free and non-commercial. The code itself is under the [MIT licence](LICENSE).
