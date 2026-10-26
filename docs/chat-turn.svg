@@ -99,5 +99,5 @@
   <text x="215" y="853" text-anchor="middle" font-size="12.5" fill="#4B5563">Pali · Thai · English</text>
 
   <text x="40" y="895" font-size="13" fill="#374151">Tools: search_canon repeats steps 2–5; get_passage is one lookup by ID. Results go back to the model (≤ 4 model steps).</text>
-  <text x="40" y="918" font-size="13" fill="#6B7280">Not drawn: the guard, which runs before step 2 and turns follow-ups into standalone queries. History stays in the browser.</text>
+  <text x="40" y="918" font-size="13" fill="#6B7280">Not drawn: the guard, which runs before step 2 and turns follow-ups into standalone queries. The browser sends the conversation with each turn.</text>
 </svg>

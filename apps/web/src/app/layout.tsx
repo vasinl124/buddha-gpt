@@ -30,9 +30,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const description = "Talk with the Buddha in English, Thai or Pali. Every quote is real, from the Pali Canon.";
+
+// The icons and the link preview are files beside this one (icon.svg, apple-icon.png,
+// opengraph-image.png), drawn by docs/brand/render.mjs. A shared link needs their absolute address,
+// so a hosted build sets SITE_URL to its public origin.
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_URL || "http://localhost:5005"),
   title: "Buddha GPT",
-  description: "A conversation with the Buddha where every quote is real.",
+  description,
+  openGraph: { title: "Buddha GPT", description, siteName: "Buddha GPT", type: "website" },
+  twitter: { card: "summary_large_image", title: "Buddha GPT", description },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

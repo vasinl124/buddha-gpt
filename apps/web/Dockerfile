@@ -13,7 +13,9 @@ COPY packages/shared packages/shared
 COPY apps/web apps/web
 ARG AGENT_URL
 ARG NEXT_PUBLIC_API_URL
-ENV AGENT_URL=$AGENT_URL NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL NEXT_TELEMETRY_DISABLED=1
+# the public origin, so a shared link's preview image has an absolute address
+ARG SITE_URL
+ENV AGENT_URL=$AGENT_URL NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL SITE_URL=$SITE_URL NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app/apps/web
 RUN pnpm build
 EXPOSE 5005

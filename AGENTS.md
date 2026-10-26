@@ -44,6 +44,7 @@ pnpm search "anatta"      # the top passages for a query (hybrid, or lexical wit
 pnpm eval                 # evals/cases against the agent, which must run with EVAL_MODE=1
 pnpm diagram              # regenerate docs/services.svg and docs/railway.svg
 pnpm media                # re-capture the README screenshots and demo (docs/media/) from the running app
+pnpm brand                # redraw the logo's images: README lockups, link previews, app icons (docs/brand/)
 ```
 
 ## Ports
