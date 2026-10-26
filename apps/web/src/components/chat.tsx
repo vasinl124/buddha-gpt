@@ -3,23 +3,18 @@
 import { useChat } from "@ai-sdk/react";
 import { CITE, type ChatData, type Crisis } from "@buddha-gpt/shared";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { ArrowUpIcon, PhoneIcon, RotateCcwIcon, SquareIcon, SquarePenIcon } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { ArrowUpIcon, PhoneIcon, RotateCcwIcon, SquareIcon } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { AnimateOptions } from "streamdown";
-import {
-  Conversation,
-  ConversationContent,
-  ConversationEmptyState,
-  ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
+import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
-import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
+import { Suggestion } from "@/components/ai-elements/suggestion";
 import { SourceCards } from "@/components/source-cards";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Mark, TopBar } from "@/components/top-bar";
 import { quotesToThaiScript } from "@/lib/pali";
 
 type BuddhaMessage = UIMessage<never, ChatData>;
@@ -52,6 +47,7 @@ function save(key: string, value: unknown) {
 
 export function Chat() {
   const [input, setInput] = useState("");
+  const box = useRef<HTMLTextAreaElement>(null);
   const { messages, sendMessage, setMessages, status, error, stop, regenerate } = useChat<BuddhaMessage>({
     messages: load(SAVED, []),
     transport: new DefaultChatTransport({ api: `${API}/api/chat` }),
@@ -69,105 +65,111 @@ export function Chat() {
     if (!text.trim() || busy) return;
     sendMessage({ text });
     setInput("");
+    // a starter's button disappears once asked: the follow-up goes in the box. Not on touch
+    // screens, where focus opens the keyboard over the reply
+    if (matchMedia("(pointer: fine)").matches) box.current?.focus();
   };
 
+  // An empty conversation starts in the middle of the page; once there's a question, the input moves
+  // to the bottom. The form keeps its place among the children, so it stays mounted and focused.
+  const empty = messages.length === 0;
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <Conversation className="min-h-0 flex-1">
-        <ConversationContent>
-          {messages.length === 0 ? (
-            <ConversationEmptyState>
-              <p className="text-muted-foreground">Ask about the Dhamma, or about what weighs on you.</p>
-              <Suggestions>
-                {STARTERS.map((s) => (
-                  <Suggestion key={s} suggestion={s} onClick={send} />
-                ))}
-              </Suggestions>
-            </ConversationEmptyState>
-          ) : (
-            messages.map((m, i) => (
-              <Turn
-                key={m.id}
-                message={m}
-                question={messages[i - 1]}
-                fresh={!saved.has(m.id)}
-                streaming={status === "streaming" && m === last}
-                waiting={waiting && m === last}
-              />
-            ))
-          )}
-          {waiting && last?.role === "user" && (
-            <Message from="assistant" className={ENTER}>
-              <MessageContent>
-                <Pending thai={THAI.test(textOf(last))} />
-              </MessageContent>
-            </Message>
-          )}
-          {error && (
-            <div role="alert" className={`flex flex-wrap items-center gap-3 text-sm text-destructive ${ENTER}`}>
-              The reply didn’t arrive.
-              <Button variant="outline" size="sm" onClick={() => regenerate()}>
-                <RotateCcwIcon />
-                Try again
-              </Button>
-            </div>
-          )}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
+    <>
+      <TopBar onNew={busy || empty ? undefined : () => setMessages([])} />
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {empty ? (
+          <Welcome />
+        ) : (
+          <Conversation className="min-h-0 flex-1">
+            <ConversationContent className="px-0">
+              {messages.map((m, i) => (
+                <Turn
+                  key={m.id}
+                  message={m}
+                  question={messages[i - 1]}
+                  fresh={!saved.has(m.id)}
+                  streaming={status === "streaming" && m === last}
+                  waiting={waiting && m === last}
+                />
+              ))}
+              {waiting && last?.role === "user" && (
+                <Message from="assistant" className={ENTER}>
+                  <MessageContent>
+                    <Pending thai={THAI.test(textOf(last))} />
+                  </MessageContent>
+                </Message>
+              )}
+              {error && (
+                <div role="alert" className={`flex flex-wrap items-center gap-3 text-sm text-destructive ${ENTER}`}>
+                  The reply didn’t arrive.
+                  <Button variant="outline" size="sm" onClick={() => regenerate()}>
+                    <RotateCcwIcon />
+                    Try again
+                  </Button>
+                </div>
+              )}
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
+        )}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
-      >
-        <InputGroup>
-          <InputGroupTextarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                send(input);
-              } else if (e.key === "Escape" && busy) stop();
-            }}
-            placeholder="Ask in English or Thai, or ask for the Pali…"
-            maxLength={2000}
-            aria-label="Your message"
-            autoFocus
-          />
-          <InputGroupAddon align="block-end" className="justify-end gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <InputGroupButton
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={busy || messages.length === 0}
-                  onClick={() => setMessages([])}
-                  aria-label="New conversation"
-                >
-                  <SquarePenIcon />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send(input);
+          }}
+        >
+          <InputGroup className="bg-card shadow-sm">
+            <InputGroupTextarea
+              ref={box}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  send(input);
+                } else if (e.key === "Escape" && busy) stop();
+              }}
+              placeholder="Ask in English or Thai, or ask for the Pali…"
+              maxLength={2000}
+              aria-label="Your message"
+              autoFocus
+            />
+            <InputGroupAddon align="block-end" className="justify-end">
+              {busy ? (
+                <InputGroupButton type="button" variant="default" size="icon-sm" onClick={() => stop()} aria-label="Stop">
+                  <SquareIcon className="size-3 fill-current" />
                 </InputGroupButton>
-              </TooltipTrigger>
-              <TooltipContent>New conversation</TooltipContent>
-            </Tooltip>
-            {busy ? (
-              <InputGroupButton type="button" variant="default" size="icon-sm" onClick={() => stop()} aria-label="Stop">
-                <SquareIcon className="size-3 fill-current" />
-              </InputGroupButton>
-            ) : (
-              <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={!input.trim()} aria-label="Send">
-                <ArrowUpIcon />
-              </InputGroupButton>
-            )}
-          </InputGroupAddon>
-        </InputGroup>
-      </form>
-      <p className="text-center text-xs text-muted-foreground">
-        An AI reflecting on the Pali Canon, not the Buddha himself. Only the sources under each reply quote the texts.
-      </p>
+              ) : (
+                <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={!input.trim()} aria-label="Send">
+                  <ArrowUpIcon />
+                </InputGroupButton>
+              )}
+            </InputGroupAddon>
+          </InputGroup>
+        </form>
+        {empty && (
+          <div className="mb-auto flex flex-wrap justify-center gap-2">
+            {STARTERS.map((s) => (
+              <Suggestion key={s} suggestion={s} onClick={send} />
+            ))}
+          </div>
+        )}
+        <p className="text-center text-xs text-muted-foreground">
+          An AI reflecting on the Pali Canon, not the Buddha himself. Only the sources under each reply quote the texts.
+        </p>
+      </div>
+    </>
+  );
+}
+
+// The empty page: who you're talking to, and how to begin.
+function Welcome() {
+  return (
+    <div className={`mt-auto flex flex-col items-center gap-3 pb-3 text-center ${ENTER}`}>
+      <Mark className="size-10 text-chart-3" />
+      <h2 className="font-serif text-2xl text-balance">Ask about the Dhamma, or about what weighs on you.</h2>
+      <p className="text-sm text-muted-foreground">A conversation with the Buddha where every quote is real.</p>
     </div>
   );
 }
@@ -207,10 +209,10 @@ function Turn({ message, question, fresh, streaming, waiting }: TurnProps) {
           </Badge>
         )}
         {waiting ? (
-          // a crisis turn shows its hotlines at once and searches nothing, so its dot has no words
-          <Pending thai={thaiScript} quiet={!!crisis} />
+          <Pending thai={thaiScript} />
         ) : (
-          <div lang={pali ? "pi" : undefined}>
+          // his words in the serif: the app's own chrome stays in the sans
+          <div lang={pali ? "pi" : undefined} className="font-serif text-base leading-7">
             <MessageResponse components={{ a: ReplyLink }} animated={WORDS} isAnimating={streaming}>
               {stripCitations(pali && thaiScript ? quotesToThaiScript(text) : text)}
             </MessageResponse>
@@ -223,12 +225,13 @@ function Turn({ message, question, fresh, streaming, waiting }: TurnProps) {
   );
 }
 
-// Holds a reply's place until its first words arrive.
-function Pending({ thai, quiet = false }: { thai: boolean; quiet?: boolean }) {
+// Holds a reply's place until its first words arrive: a breath before he speaks. No words about
+// searching, since the person is talking to him.
+function Pending({ thai }: { thai: boolean }) {
   return (
-    <p role="status" className="flex h-6 items-center gap-2.5 text-sm text-muted-foreground">
+    <p role="status" className="flex h-7 items-center">
       <span aria-hidden className="size-2 animate-breathe rounded-full bg-primary" />
-      {quiet ? <span className="sr-only">Replying</span> : thai ? "กำลังค้นพระสูตร…" : "Searching the canon…"}
+      <span className="sr-only">{thai ? "กำลังตอบ" : "Replying"}</span>
     </p>
   );
 }

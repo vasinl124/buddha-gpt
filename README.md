@@ -29,7 +29,7 @@ docker compose up -d db
 pnpm dev
 ```
 
-Open <http://localhost:5005>. The page shows whether the agent, the Go core and Postgres are up. If something else already uses port 5432, set `POSTGRES_PORT` in `.env` and change the port in `DATABASE_URL` to match.
+Open <http://localhost:5005>. The dot in the top bar shows whether the agent, the Go core and Postgres are up; hover it to see each. If something else already uses port 5432, set `POSTGRES_PORT` in `.env` and change the port in `DATABASE_URL` to match.
 
 | Service | Health check |
 |---|---|
