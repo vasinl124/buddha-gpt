@@ -20,7 +20,22 @@
 
 Ask about the Dhamma, or about what weighs on you. The Buddha answers in your language, drawing on the Pali Canon, and **Sources** under each reply opens the passages he drew on, word for word from the canon in Pali, Thai and English. The model never writes scripture: it chooses passages, and code quotes them.
 
-I built it over one weekend as a portfolio project, to brush up on the fundamentals end to end: retrieval-augmented generation done carefully, a Go data service, a TypeScript agent, a Next.js app, Thai and Pali text processing, guardrails that live in code, evals that gate pull requests, accounts, and a deploy on Railway.
+## Why I built this
+
+I went to a meditation camp, and somewhere in the sitting a thought came up: the Buddha passed away some 2,500 years ago, so nobody can ask him anything anymore. What remains is the Tipiṭaka, the Pali Canon: his teachings as his monks kept them, recited together after his death and written down centuries later. And today there's a way to talk with a body of text: retrieval-augmented generation (RAG).
+
+It's the same pattern I'd built at my previous company, for legal AI and for chatbots over internal policy documents. So this was the project to relearn that whole stack end to end: a Go backend, the Vercel AI SDK, and a RAG pipeline put together into a working chatbot. Only the corpus changes, and this one is harder in good ways.
+
+**The idea, in four steps:**
+
+1. Load the canon's discourses into Postgres, every paragraph with an ID, and embed the English and Thai paragraphs as vectors with pgvector.
+2. When you ask something, the agent searches for the actual passages that speak to it.
+3. The model answers from those passages, in the Buddha's voice, and cites them by ID.
+4. Code shows the cited passages word for word, so every quote is real.
+
+The canon is here in three languages: Pali, the original, plus English and Thai. Search works across all three, by meaning in English and Thai and by the words themselves in all of them, so even a Pali phrase finds its passage.
+
+I built it over one weekend, and it's live at [buddha.maxlim.xyz](https://buddha.maxlim.xyz). Along the way: hybrid search in Go, a TypeScript agent with tools, a Next.js app, Thai and Pali text processing, guardrails that live in code, evals that gate pull requests, accounts, and a deploy on Railway.
 
 ## What it does
 
