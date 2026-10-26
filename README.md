@@ -25,11 +25,10 @@ Ask about the Dhamma, or about what weighs on you. The Buddha answers in your la
 At the beginning of October I attended a Vipassana meditation course at [Dhamma Sirī](http://siri.dhamma.org/), the Southwest Vipassana Meditation Center in Kaufman, Texas. Somewhere in the sitting a thought came up: the Buddha passed away some 2,500 years ago, so nobody can ask him anything anymore. What remains is the Tipiṭaka, the Pali Canon: his teachings as his monks kept them, recited together after his death and written down centuries later. And today there's a way to talk with a body of text: retrieval-augmented generation (RAG).
 
 <p align="center">
-  <img src="docs/media/dhamma-siri-sign.jpg" width="32%" alt="Max beside the Southwest Vipassana Meditation Center's sign, which carries the Dhamma wheel">
-  <img src="docs/media/dhamma-siri-hall.jpg" width="32%" alt="The center's round meditation hall at sunset">
-  <img src="docs/media/dhamma-siri-residence.jpg" width="32%" alt="A residence building at the center at dusk">
+  <img src="docs/media/dhamma-siri-hall.jpg" width="48%" alt="The center's round meditation hall at sunset">
+  <img src="docs/media/dhamma-siri-residence.jpg" width="48%" alt="A residence building at the center at dusk">
 </p>
-<p align="center"><sub>Dhamma Sirī, in October. Its sign carries the Dhamma wheel, the same wheel as this project's mark.</sub></p>
+<p align="center"><sub>Dhamma Sirī, in October.</sub></p>
 
 At my last job I built [B3OS](https://b3os.org/), the onchain engine for agentic AI, on a Go backend with LangGraph and RAG. This time I wanted to build the same kind of system from scratch, with Go again but the Vercel AI SDK instead of LangGraph: a Go backend, a TypeScript agent and a RAG pipeline put together into a working chatbot. Only the corpus changes, and this one is harder in good ways.
 
@@ -53,10 +52,10 @@ A new conversation starts on the welcome page: ask in English or Thai, ask for t
 | Sources opens the passages behind an answer, in Pali, Thai and English | Ask in Thai, and he answers in Thai |
 |---|---|
 | ![An answer about the four noble truths, with its sources open](docs/media/answer.png) | ![A Thai question answered in Thai with the noble truth of suffering, its sources folded below](docs/media/thai.png) |
-| **Ask for the Pali, and he answers in the canon's own words, here in Thai script** | **A popular quote, checked against the texts** |
-| ![Asked for the Pali, the reply is the canon's own Pali, shown in Thai script](docs/media/pali.png) | ![Asked whether the Buddha said a popular quote, the app checks the texts and says what they hold](docs/media/quote.png) |
+| **Ask for the Pali, and he answers in the canon's own words** | **A popular quote, checked against the texts** |
+| ![Asked for the Pali, the reply is the canon's own Pali](docs/media/pali.png) | ![Asked whether the Buddha said a popular quote, the app checks the texts and says what they hold](docs/media/quote.png) |
 | **Lottery numbers get a kind no, with a teaching** | **A crisis message gets the right numbers at once** |
-| ![A Thai lottery request gets a kind no, its source folded below](docs/media/decline.png) | ![A crisis message answered with Thailand's hotline numbers](docs/media/crisis.png) |
+| ![A lottery request gets a kind no, its source folded below](docs/media/decline.png) | ![A crisis message answered with Thailand's hotline numbers](docs/media/crisis.png) |
 
 **On a phone.** While he answers, a line of goodwill from the Mettā Sutta holds his reply's place: never "searching…", since you're talking to the Buddha. Past conversations live in a drawer.
 

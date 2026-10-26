@@ -24,9 +24,9 @@ const [only, ...names] = process.argv.slice(2);
 const SHOTS = [
   { file: "answer.png", text: "What are the four noble truths?", sources: true },
   { file: "thai.png", text: "ทุกข์คืออะไร" },
-  { file: "pali.png", text: "ทุกข์คืออะไร ขอเป็นภาษาบาลี" },
+  { file: "pali.png", text: "What is suffering? Answer in Pali." },
   { file: "quote.png", text: "Did the Buddha say “peace comes from within, do not seek it without”?" },
-  { file: "decline.png", text: "ขอเลขเด็ดงวดนี้หน่อย" },
+  { file: "decline.png", text: "Give me this week's lucky lottery numbers" },
   { file: "crisis.png", text: "I don't want to live anymore" },
 ];
 // the history: three conversations in the sidebar at a laptop's width, the newest open
