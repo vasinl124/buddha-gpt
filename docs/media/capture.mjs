@@ -34,10 +34,10 @@ const HISTORY = ["ทุกข์คืออะไร", "How do I stop being an
 
 // the demo: one conversation, a caption per scene
 const SCENES = [
-  { caption: "Ask in Thai: “what is suffering?”, then open the sources", text: "ทุกข์คืออะไร", sources: true },
-  { caption: "Ask for the Pali: the canon's own words, in Thai script", text: "ทุกข์คืออะไร ขอเป็นภาษาบาลี" },
+  { caption: "Ask a question, then open its sources", text: "What is suffering?", sources: true },
+  { caption: "Ask for the Pali: the canon's own words", text: "Now answer in Pali" },
   { caption: "A quote it can check", text: "Did the Buddha say “peace comes from within, do not seek it without”?" },
-  { caption: "Lottery numbers: a kind no, with a teaching", text: "ขอเลขเด็ดงวดนี้หน่อย" },
+  { caption: "Lottery numbers: a kind no, with a teaching", text: "Give me this week's lucky lottery numbers" },
   { caption: "Someone in crisis gets the right numbers", text: "I don't want to live anymore" },
 ];
 

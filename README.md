@@ -16,7 +16,7 @@
   <a href="docs/PRD.md">Read the design</a>
 </p>
 
-![A Thai question, the same question asked in Pali, a popular quote checked, a lottery request and a crisis message](docs/media/demo.gif)
+![A question about suffering with its sources open, the answer again in Pali, a popular quote checked, a lottery request and a crisis message](docs/media/demo.gif)
 
 Ask about the Dhamma, or about what weighs on you. The Buddha answers in your language, drawing on the Pali Canon, and **Sources** under each reply opens the passages he drew on, word for word from the canon in Pali, Thai and English. The model never writes scripture: it chooses passages, and code quotes them.
 
@@ -136,7 +136,7 @@ The prompts and the policy are public on purpose, so every guardrail holds even 
 
 Four services: `db` (the `pgvector/pgvector:pg18` image on a volume), `core`, `agent` and `web`, each built from the repo root with its own Dockerfile. The app lives at [buddha.maxlim.xyz](https://buddha.maxlim.xyz), a custom domain proxied by Cloudflare. Two lessons from the deploy:
 
-- **Each `up.railway.app` domain is a site of its own,** so Safari wouldn't send the agent's session cookie to the web app. Only `web` is public: it proxies `/agent/*` to the agent over the private network, which makes the cookie first-party. The stream says `Cache-Control: no-transform`, so the proxy doesn't gzip it and hold the words back.
+- **Only `web` is public.** `agent`, `core` and `db` have no public address: they talk over Railway's private network, and `web` proxies `/agent/*` to the agent. That keeps the session cookie first-party. Each `up.railway.app` domain is a site of its own, so if the agent had one, Safari would block its cookie. The stream says `Cache-Control: no-transform`, so the proxy doesn't gzip it and hold the words back.
 - **Railway's edge sends `X-Forwarded-For: <visitor>, <edge>`.** Trusting one hop gave every visitor the edge's address, and so one shared rate limit. Then the domain went behind Cloudflare, whose address took the visitor's place. Railway's `X-Real-IP` still names the visitor on both routes, and Railway overwrites any a client forges, so the limits count that (`CLIENT_IP_HEADER=x-real-ip`).
 
 ### Decisions worth talking about

@@ -36,10 +36,10 @@ Each part exists to show one skill:
 - Pali students who juggle the root text, a translation and a dictionary in separate tabs.
 
 **The two-minute demo** (the README GIF):
-1. Ask in Thai "ทุกข์คืออะไร" (what is suffering?). He answers in Thai, with a card for SN 56.11 in Pali, Thai and English.
-2. Ask for the Pali ("ขอเป็นภาษาบาลี"). He answers with the canon's own words, in Thai script.
+1. Ask "What is suffering?". He answers in plain English, and the sources under the reply hold the passages he drew on, such as SN 56.11.
+2. Ask for the Pali ("Now answer in Pali"). He answers with the canon's own words.
 3. "Did the Buddha say 'peace comes from within'?" He says he doesn't recall saying those words.
-4. "ขอเลขเด็ดงวดนี้" (give me lucky lottery numbers). A kind no, pointing to DN 1.
+4. "Give me this week's lucky lottery numbers". A kind no, pointing to DN 1.
 5. A message from someone in crisis. Plain words and the right hotline numbers.
 6. A PR that weakens the prompt. The eval gate turns red.
 
@@ -229,7 +229,7 @@ buddha-gpt/
 | 6 | core → OpenRouter | HTTPS | Query embeddings |
 | 7 | Your machine → db | A TCP proxy opened for the load, then deleted | `pg_restore` of the local canon: a `pg_dump` without the account tables' rows |
 
-Railway gives each service a domain of its own under `up.railway.app`, a public suffix, so browsers treat every service as a separate site, and Safari wouldn't send the agent's cookie to the web app. So there's one public domain: the web app proxies `/agent/*` to the agent, which makes the cookie first-party. Its path is `/`, so it covers the prefix. Railway's edge replaces any `X-Forwarded-For` with `<visitor>, <edge address>` and the web app's proxy passes it on, so the agent trusts two hops to find the visitor (`TRUST_PROXY=2`; with 1, every visitor shared the edge's address and its limits). The custom domain, `buddha.maxlim.xyz`, is proxied by Cloudflare, and then the first address is Cloudflare's. Railway also sets `X-Real-IP` to the visitor on either route, from Cloudflare's `CF-Connecting-IP`, and it overwrites an `X-Real-IP` and strips a `CF-Connecting-IP` that a client sends. So the limits count `X-Real-IP` (`CLIENT_IP_HEADER=x-real-ip`), and `TRUST_PROXY` is left to mark requests as HTTPS for the cookie. Its stream carries `Cache-Control: no-transform`, so the proxy doesn't gzip it and hold the words back.
+Only the web app has a public domain. The agent, the core and Postgres have none and talk over Railway's private network. A domain Railway generates sits under `up.railway.app`, a public suffix, so a public agent would be a separate site from the web app, and Safari would block its cookie. Instead the web app proxies `/agent/*` to the agent, which makes the cookie first-party. Its path is `/`, so it covers the prefix. Railway's edge replaces any `X-Forwarded-For` with `<visitor>, <edge address>` and the web app's proxy passes it on, so the agent trusts two hops to find the visitor (`TRUST_PROXY=2`; with 1, every visitor shared the edge's address and its limits). The custom domain, `buddha.maxlim.xyz`, is proxied by Cloudflare, and then the first address is Cloudflare's. Railway also sets `X-Real-IP` to the visitor on either route, from Cloudflare's `CF-Connecting-IP`, and it overwrites an `X-Real-IP` and strips a `CF-Connecting-IP` that a client sends. So the limits count `X-Real-IP` (`CLIENT_IP_HEADER=x-real-ip`), and `TRUST_PROXY` is left to mark requests as HTTPS for the cookie. Its stream carries `Cache-Control: no-transform`, so the proxy doesn't gzip it and hold the words back.
 
 | Service | Built from | Settings |
 |---|---|---|
