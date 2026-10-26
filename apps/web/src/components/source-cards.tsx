@@ -1,4 +1,5 @@
 import type { Card as SourceCard } from "@buddha-gpt/shared";
+import { ChevronRightIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toThaiScript } from "@/lib/pali";
@@ -6,14 +7,16 @@ import { LANGS, displayRef, suttaCentralUrl } from "@/lib/refs";
 
 // The passages a reply relies on, verbatim from the canon. Only these carry his words (PRD §5.2).
 // They fold away under the reply, so the conversation reads as plain speech.
-export function SourceCards({ cards, thaiScript }: { cards: SourceCard[]; thaiScript: boolean }) {
+export function SourceCards({ cards, thaiScript, className }: { cards: SourceCard[]; thaiScript: boolean; className?: string }) {
   if (cards.length === 0) return null;
   return (
-    <details>
-      <summary className="w-fit cursor-pointer text-xs text-muted-foreground select-none hover:text-foreground">
+    <details className={`group/sources ${className ?? ""}`}>
+      <summary className="flex w-fit cursor-pointer list-none items-center gap-1 rounded-sm text-xs text-muted-foreground outline-none transition-colors duration-150 select-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon aria-hidden className="size-3.5 transition-transform duration-200 ease-out-quart group-open/sources:rotate-90" />
         Sources ({cards.length})
       </summary>
-      <div className="flex flex-col gap-3 pt-3">
+      {/* the cards drop in each time it opens; it closes at once */}
+      <div className="flex flex-col gap-3 pt-3 animate-in fade-in-0 slide-in-from-top-1 duration-300 ease-out-quart">
         {cards.map((card, i) => (
           <Card key={card.id} size="sm">
             <CardHeader>

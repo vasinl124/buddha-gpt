@@ -86,6 +86,8 @@ export interface GateOptions {
   lang?: "en" | "th";
   /** Drop any sentence whose folded text matches (risk names; numbers and links on a crisis turn). */
   blocked?: RegExp;
+  /** A sentence code already showed (a quote's verdict): the model's copy of it isn't shown twice. */
+  shown?: string;
 }
 
 export class SentenceGate {
@@ -156,6 +158,12 @@ export class SentenceGate {
   // Strips citations of passages not retrieved this turn, and drops the sentence if it quotes
   // words that aren't in any retrieved passage.
   private check(raw: string): string | null {
+    // a copy of what code already showed is cut. A Thai sentence runs on until a citation or a line
+    // break, so the copy can be the start of a longer one
+    if (this.opts.shown && raw.trimStart().startsWith(this.opts.shown)) {
+      raw = raw.trimStart().slice(this.opts.shown.length);
+      if (!raw.trim()) return null;
+    }
     const ids: string[] = [];
     const s = raw.replace(CITE, (marker, id: string) => {
       if (!this.known.has(id)) {

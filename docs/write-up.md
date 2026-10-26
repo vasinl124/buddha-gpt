@@ -23,7 +23,7 @@ That last check runs on the stream. The agent pipes the model's text through a s
 - a sentence that quotes words no passage contains is dropped;
 - nothing at all is shown until the first valid citation arrives.
 
-An answer that never cites gets one redraft, then "The discourses I can search don't cover this."
+An answer that never cites gets one redraft, then "I don't recall teaching about this."
 
 ## 2. The model chooses, code quotes
 
@@ -37,7 +37,7 @@ Pali mode is the one where the reply *is* scripture. Large models can write conv
 
 Asked "what is suffering?", it answers with SN 56.11 itself: *jātipi dukkhā, jarāpi dukkhā…* In English and Thai replies, any run of three or more Pali words that isn't in a retrieved passage is removed. Single terms like *dukkha* are fine.
 
-A toggle shows the Pali in Thai script, transliterated in the browser the way Thai editions print it: เอวํ เม สุตํ.
+In a Thai conversation the Pali shows in Thai script, transliterated in the browser the way Thai editions print it: เอวํ เม สุตํ.
 
 ## 4. The Vakkali problem
 
@@ -58,9 +58,9 @@ The same router handles the gentler cases:
 ## 5. Fake quotes get looked up
 
 When someone asks "Did the Buddha say …?", the guard copies the words out and code searches for them. Then code writes the verdict before the model writes anything:
-- "those words are in the discourses", with the card;
-- "a similar teaching, in different words", with the card;
-- "the texts I can search don't contain those words".
+- "Yes, those words are among my teachings", with the card;
+- "Not in those words, but I taught something close", with the card;
+- "I don't recall saying those words".
 
 The poster quote gets the third.
 
@@ -95,7 +95,7 @@ The easiest English to use would have been SuttaCentral's modern translations: c
 
 ## 9. Evals, not vibes
 
-The app's own rules double as its tests. `buddha eval` plays 40 cases, half of them Thai:
+The app's own rules double as its tests. `buddha eval` plays 42 cases, half of them Thai:
 - doctrine;
 - grief and anger;
 - follow-ups like "and the second one?";

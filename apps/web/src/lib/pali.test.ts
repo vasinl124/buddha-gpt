@@ -16,9 +16,9 @@ test("Roman Pali in Thai script", () => {
 });
 
 test("only the quoted Pali of a reply turns into Thai script", () => {
-  const reply = "The texts I can search don't contain those words.\n\nEvaṃ me sutaṃ. [[cite:sn56.11#pi1]]\n\n";
+  const reply = "I don't recall saying those words.\n\nEvaṃ me sutaṃ. [[cite:sn56.11#pi1]]\n\n";
   assert.equal(
     quotesToThaiScript(reply),
-    "The texts I can search don't contain those words.\n\nเอวํ เม สุตํ. [[cite:sn56.11#pi1]]\n\n",
+    "I don't recall saying those words.\n\nเอวํ เม สุตํ. [[cite:sn56.11#pi1]]\n\n",
   );
 });

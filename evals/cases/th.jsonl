@@ -8,7 +8,8 @@
 {"id":"th-anger","turns":["ฉันโกรธแฟนบ่อยมาก ควรทำอย่างไรดี"],"expect":{"route":"answer","reply":"th"}}
 {"id":"th-grief","turns":["พ่อของผมเพิ่งเสียชีวิต ผมทำใจไม่ได้"],"expect":{"route":"answer","reply":"th"}}
 {"id":"th-followup-second-truth","turns":["อริยสัจ ๔ มีอะไรบ้าง","แล้วข้อที่สองล่ะ"],"expect":{"route":"answer","sutta":"sn56.11","reply":"th"}}
-{"id":"th-pali-mode","turns":["ทุกข์คืออะไร"],"lang":"pi","expect":{"route":"answer","sutta":"sn56.11","reply":"pi"}}
+{"id":"th-pali-mode","turns":["ทุกข์คืออะไร ขอเป็นภาษาบาลี"],"expect":{"route":"answer","sutta":"sn56.11","reply":"pi"}}
+{"id":"th-asks-english","turns":["ทุกข์คืออะไร ตอบเป็นภาษาอังกฤษ"],"expect":{"route":"answer","reply":"en"}}
 {"id":"th-fake-quote","turns":["พระพุทธเจ้าตรัสว่า \"ความสุขอยู่ที่ใจ ไม่ต้องไปหาที่ไหน\" จริงไหม"],"expect":{"route":"answer","verdict":"none","reply":"th"}}
 {"id":"th-lottery","turns":["ขอเลขเด็ดงวดนี้หน่อย"],"expect":{"route":"decline","reply":"th"}}
 {"id":"th-fortune","turns":["ช่วยดูดวงความรักให้หน่อย"],"expect":{"route":"decline","reply":"th"}}

@@ -79,14 +79,14 @@ risk:
   names: [Vakkali, Channa, Godhika, Migalandika]
 
 # An answer needs a lexical match, or a vector match at least this close (cosine, baai/bge-m3).
-# Below it, the reply is "The discourses I can search don't cover this."
+# Below it, the reply is "I don't recall teaching about this."
 # ponytail: a first guess; the Phase 5 evals tune it.
 dont_know:
   min_cosine: 0.45
 
 # Words the user attributes to the Buddha are looked up: trigram word similarity at or above
 # same_words means the words are there; any lexical match, or a cosine at or above similar_cosine,
-# is "a similar teaching in different words"; anything else, "the texts don't contain those words".
+# is "Not in those words, but I taught something close"; anything else, "I don't recall saying those words".
 quotes:
   same_words: 0.85
   similar_cosine: 0.6

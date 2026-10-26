@@ -2,7 +2,7 @@
 // answers), every sentence passes the checks, and the cards are filled verbatim from the database.
 import { readFileSync } from "node:fs";
 import type { ServerResponse } from "node:http";
-import type { Card, ChatData, Crisis, ReplyLang } from "@buddha-gpt/shared";
+import type { Card, ChatData, Crisis } from "@buddha-gpt/shared";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -16,7 +16,7 @@ import {
 import { z } from "zod";
 import { SentenceGate, fold, isThai } from "./checks.ts";
 import * as core from "./core.ts";
-import { crisisKeyword, guard, type Route } from "./guard.ts";
+import { crisisKeyword, guard, type Guard, type Route } from "./guard.ts";
 import { chatModel, modelId } from "./model.ts";
 import { policy } from "./policy.ts";
 
@@ -31,9 +31,10 @@ const MAX_STEPS = 4; // the last one has no tools, so the model has to answer
 // OpenRouter reserves the model's whole output limit (65,536 tokens) against the account's credit.
 const MAX_OUTPUT = 2000;
 
-// The replies code writes itself.
+// The replies code writes itself, in his voice. "I don't recall" is honest: a search that finds
+// nothing doesn't show that the texts are silent.
 const TEXT = {
-  dontKnow: { en: "The discourses I can search don't cover this.", th: "พระสูตรที่เราค้นได้ไม่ได้กล่าวถึงเรื่องนี้" },
+  dontKnow: { en: "I don't recall teaching about this.", th: "เรานึกไม่ออกว่าเคยแสดงธรรมเรื่องนี้ไว้" },
   // retrieval is down: honest about the failure, never claiming the texts are silent (PRD §9)
   cantRecall: {
     en: "I can't recall the exact words right now. Please ask again in a little while.",
@@ -45,12 +46,9 @@ const TEXT = {
     th: "เราอยู่ตรงนี้กับท่าน ท่านไม่ต้องแบกเรื่องนี้ไว้ลำพัง โปรดติดต่อผู้ที่ช่วยได้ด้านล่างนี้ทันที",
   },
   crisisTitle: { en: "If you might be in danger, please reach out now", th: "หากท่านอาจตกอยู่ในอันตราย โปรดติดต่อทันที" },
-  quoteFound: { en: "Those words are in the discourses I can search.", th: "ถ้อยคำนั้นมีอยู่ในพระสูตรที่เราค้นได้" },
-  quoteSimilar: {
-    en: "The texts I can search hold a similar teaching, in different words.",
-    th: "พระสูตรที่เราค้นได้มีคำสอนที่คล้ายกัน แต่ใช้ถ้อยคำต่างกัน",
-  },
-  quoteNone: { en: "The texts I can search don't contain those words.", th: "พระสูตรที่เราค้นได้ไม่มีถ้อยคำนั้น" },
+  quoteFound: { en: "Yes, those words are among my teachings.", th: "ใช่ ถ้อยคำนั้นอยู่ในคำสอนของเรา" },
+  quoteSimilar: { en: "Not in those words, but I taught something close.", th: "ไม่ใช่ด้วยถ้อยคำนั้น แต่เราเคยสอนเรื่องที่ใกล้เคียงกัน" },
+  quoteNone: { en: "I don't recall saying those words.", th: "เรานึกไม่ออกว่าเคยกล่าวถ้อยคำนั้น" },
 };
 
 // What the reply model is told for each route, in this turn's note.
@@ -66,20 +64,21 @@ const NOTE: Record<Route, string> = {
 
 /** evalMode answers with one JSON object (the reply, its cards, and a debug block) instead of a
  * stream, for `buddha eval` (PRD §10). */
-export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: ReplyLang = "auto", evalMode = false): Promise<void> {
+export async function chat(messages: BuddhaMessage[], res: ServerResponse, evalMode = false): Promise<void> {
   const history = untrusted(messages);
   const latest = textOf(history.findLast((m) => m.role === "user"));
-  // the reply language: forced by the switch, or detected (PRD §5.1); Pali mode keeps the
-  // person's language for everything that isn't a quote
-  const lang: Lang = ask === "en" || ask === "th" ? ask : isThai(latest) ? "th" : "en";
   const modelMessages = await convertToModelMessages(history);
 
   // crisis words skip the guard, so the hotlines show without waiting for a model call
-  const g = crisisKeyword(latest)
-    ? ({ route: "crisis", decline_topic: null, search_query: latest, quote: "" } as const)
+  const g: Guard = crisisKeyword(latest)
+    ? { route: "crisis", decline_topic: null, search_query: latest, quote: "", reply_lang: null }
     : await guard(modelMessages, latest);
   const route: Route = g.route;
-  const pali = ask === "pi" && route === "answer"; // crisis, decline and don't-know are never in Pali
+  // the reply language (PRD §5.1): the one the person asked for, else the message's own. Pali mode
+  // keeps the person's language for everything that isn't a quote
+  const asked = g.reply_lang;
+  const lang: Lang = asked === "en" || asked === "th" ? asked : isThai(latest) ? "th" : "en";
+  const pali = asked === "pi" && route === "answer"; // crisis, decline and don't-know are never in Pali
   // Risk stays on once any turn showed it (PRD §9): this route, an earlier reply's risk flag, or
   // crisis words anywhere in the history. Then search leaves out the risk suttas.
   const risk =
@@ -134,7 +133,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
           passages = [q.hits[0], ...passages];
           pinned = q.hits[0].id;
         }
-        note += ` The person attributed these words to the Buddha: "${escapeTags(g.quote)}". The app has already told them: "${opening}" Don't repeat it, and never claim you said those words.`;
+        note += ` The person attributed these words to the Buddha: "${escapeTags(g.quote)}". Your reply's first sentence is already written: "${opening}" Write only what follows it, and never claim you said those words.`;
       }
       if (pali && !fixed) {
         // the Pali of the suttas search found, around where each one's best hit falls: the model
@@ -206,6 +205,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, ask: 
       requireCite: route === "answer",
       lang,
       blocked: blocked.length ? new RegExp(blocked.join("|")) : undefined,
+      shown: opening,
     });
     const result = streamText({
       model,

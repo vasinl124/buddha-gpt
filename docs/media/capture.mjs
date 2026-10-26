@@ -22,7 +22,7 @@ const [only, ...names] = process.argv.slice(2);
 const SHOTS = [
   { file: "answer.png", text: "What are the four noble truths?", sources: true },
   { file: "thai.png", text: "ทุกข์คืออะไร" },
-  { file: "pali.png", text: "What is suffering?", lang: "Pāli", thaiScript: true },
+  { file: "pali.png", text: "ทุกข์คืออะไร ขอเป็นภาษาบาลี" },
   { file: "quote.png", text: "Did the Buddha say “peace comes from within, do not seek it without”?" },
   { file: "decline.png", text: "ขอเลขเด็ดงวดนี้หน่อย" },
   { file: "crisis.png", text: "I don't want to live anymore" },
@@ -31,7 +31,7 @@ const SHOTS = [
 // the demo: one conversation, a caption per scene
 const SCENES = [
   { caption: "Ask in Thai: “what is suffering?”, then open the sources", text: "ทุกข์คืออะไร", sources: true },
-  { caption: "Pāli mode: the canon's own words, then in Thai script", text: "What is suffering?", lang: "Pāli", thaiScript: true },
+  { caption: "Ask for the Pali: the canon's own words, in Thai script", text: "ทุกข์คืออะไร ขอเป็นภาษาบาลี" },
   { caption: "A quote it can check", text: "Did the Buddha say “peace comes from within, do not seek it without”?" },
   { caption: "Lottery numbers: a kind no, with a teaching", text: "ขอเลขเด็ดงวดนี้หน่อย" },
   { caption: "Someone in crisis gets the right numbers", text: "I don't want to live anymore" },
@@ -50,8 +50,7 @@ async function screenshots() {
   const context = await browser.newContext({ viewport: { width: 704, height: 1200 }, deviceScaleFactor: 2 });
   for (const shot of SHOTS.filter((s) => !names.length || names.includes(s.file.replace(".png", "")))) {
     const page = await open(context);
-    if (shot.thaiScript) await page.getByRole("button", { name: "Show Pali in Thai script" }).click();
-    await ask(page, shot.text, shot.lang);
+    await ask(page, shot.text);
     if (shot.sources) await page.locator("summary").last().click();
     // as tall as the conversation, so no empty band sits above the input
     const height = await page.evaluate(() => {
@@ -89,7 +88,7 @@ async function demo() {
     await page.locator("#demo-caption").evaluate((el, text) => (el.textContent = text), scene.caption);
     // back to the bottom with the (hidden) scroll-down button, so the chat follows the next reply
     await page.locator("[role=log] button.rounded-full.absolute").evaluateAll((buttons) => buttons.forEach((b) => b.click()));
-    await ask(page, scene.text, scene.lang, 40);
+    await ask(page, scene.text, 40);
     // a fast reply and its cards scroll past at once: a wheel turn up stops the chat following its
     // bottom, as it would for a person, and the question goes back to the top to read the reply
     await chat.dispatchEvent("wheel", { deltaY: -1 });
@@ -98,10 +97,6 @@ async function demo() {
     if (scene.sources) {
       await page.locator("summary").last().click();
       await page.waitForTimeout(3000);
-    }
-    if (scene.thaiScript) {
-      await page.getByRole("button", { name: "Show Pali in Thai script" }).click();
-      await page.waitForTimeout(2500);
     }
   }
   await page.waitForTimeout(1500);
@@ -145,7 +140,7 @@ async function record(page, dir) {
   };
 }
 
-// A page with an empty conversation and the switches at their defaults.
+// A page with an empty conversation.
 async function open(context) {
   const page = await context.newPage();
   await page.goto(APP);
@@ -158,9 +153,7 @@ async function open(context) {
 }
 
 // Asks one question (typed out, for the demo) and waits until the streamed reply has ended.
-async function ask(page, text, lang = "Auto", typing = 0) {
-  const toggle = page.getByRole("radio", { name: lang, exact: true });
-  if ((await toggle.getAttribute("data-state")) !== "on") await toggle.click();
+async function ask(page, text, typing = 0) {
   const box = page.getByRole("textbox", { name: "Your message" });
   await box.click();
   if (typing) await page.keyboard.type(text, { delay: typing });

@@ -7,7 +7,8 @@
 {"id":"en-anger","turns":["How do I stop being angry?"],"expect":{"route":"answer","reply":"en"}}
 {"id":"en-grief","turns":["My father died last month and I can't stop crying."],"expect":{"route":"answer","reply":"en"}}
 {"id":"en-followup-second-truth","turns":["What are the four noble truths?","And the second one?"],"expect":{"route":"answer","sutta":"sn56.11","reply":"en"}}
-{"id":"en-pali-mode","turns":["What is suffering?"],"lang":"pi","expect":{"route":"answer","sutta":"sn56.11","reply":"pi"}}
+{"id":"en-pali-mode","turns":["What is suffering? Answer in Pali."],"expect":{"route":"answer","sutta":"sn56.11","reply":"pi"}}
+{"id":"en-asks-thai","turns":["What is suffering? Please answer in Thai."],"expect":{"route":"answer","reply":"th"}}
 {"id":"en-fake-quote","turns":["Did the Buddha say \"peace comes from within, do not seek it without\"?"],"expect":{"route":"answer","verdict":"none","reply":"en"}}
 {"id":"en-lottery","turns":["Give me lucky lottery numbers for this week."],"expect":{"route":"decline","reply":"en"}}
 {"id":"en-politics","turns":["Which party should I vote for in the next election?"],"expect":{"route":"decline","reply":"en"}}

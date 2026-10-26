@@ -1,34 +1,41 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { CITE, type ChatData, type Crisis, type ReplyLang } from "@buddha-gpt/shared";
+import { CITE, type ChatData, type Crisis } from "@buddha-gpt/shared";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { ArrowUpIcon, PhoneIcon, SquarePenIcon } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
-import {
-  Conversation,
-  ConversationContent,
-  ConversationEmptyState,
-  ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
+import { ArrowUpIcon, PhoneIcon, RotateCcwIcon, SquareIcon } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { AnimateOptions } from "streamdown";
+import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
-import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
+import { Suggestion } from "@/components/ai-elements/suggestion";
 import { SourceCards } from "@/components/source-cards";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
-import { Toggle } from "@/components/ui/toggle";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { quotesToThaiScript } from "@/lib/pali";
+import { Mark, TopBar } from "@/components/top-bar";
+import { quotesToThaiScript, toThaiScript } from "@/lib/pali";
 
 type BuddhaMessage = UIMessage<never, ChatData>;
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7891";
-// the conversation and the settings live in this browser only (PRD §11)
-const SAVED = { conversation: "buddha-gpt:conversation", lang: "buddha-gpt:lang", thaiScript: "buddha-gpt:thai-script" };
+// the conversation lives in this browser only (PRD §11)
+const SAVED = "buddha-gpt:conversation";
 const STARTERS = ["What is suffering?", "How do I stop being angry?", "My father died last month", "ทุกข์คืออะไร"];
-const REPLY_LANGS: [ReplyLang, string][] = [["auto", "Auto"], ["en", "EN"], ["th", "ไทย"], ["pi", "Pāli"]];
+// Thai in a turn shows its Pali in Thai script, as Thai editions print it; otherwise it's Roman
+const THAI = /[฀-๿]/;
+// the agent releases a reply a sentence at a time: its words fade in as they arrive
+const WORDS: AnimateOptions = { animation: "blurIn", duration: 300, easing: "var(--ease-out-quart)" };
+const ENTER = "animate-in fade-in-0 duration-300 ease-out-quart";
+// While he gathers his words: goodwill from the Mettā Sutta (Snp 1.8), verbatim from VRI's Pali,
+// with a plain gloss. Only wishes for the person's good, since the line shows before the agent knows
+// whether the message is a crisis; a crisis turn's dot has no words at all.
+const BLESSINGS = [
+  { pi: "Sabbasattā bhavantu sukhitattā", en: "may all beings be happy at heart", th: "ขอสัตว์ทั้งปวงจงมีความสุขเถิด" },
+  { pi: "Sukhino va khemino hontu", en: "may they be happy and safe", th: "ขอให้เป็นสุข มีความเกษมเถิด" },
+  { pi: "Mettañca sabbalokasmi", en: "goodwill for the whole world", th: "เมตตาไปทั่วทั้งโลก" },
+];
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -48,121 +55,148 @@ function save(key: string, value: unknown) {
 
 export function Chat() {
   const [input, setInput] = useState("");
-  const [lang, setLang] = useState<ReplyLang>(() => load(SAVED.lang, "auto"));
-  const [thaiScript, setThaiScript] = useState(() => load(SAVED.thaiScript, false));
-  const { messages, sendMessage, setMessages, status, error } = useChat<BuddhaMessage>({
-    messages: load(SAVED.conversation, []),
+  const box = useRef<HTMLTextAreaElement>(null);
+  const { messages, sendMessage, setMessages, status, error, stop, regenerate } = useChat<BuddhaMessage>({
+    messages: load(SAVED, []),
     transport: new DefaultChatTransport({ api: `${API}/api/chat` }),
   });
   const busy = status === "submitted" || status === "streaming";
+  // a conversation saved from an earlier visit shows at once; only new messages move
+  const [saved] = useState(() => new Set(messages.map((m) => m.id)));
+  const last = messages.at(-1);
+  // the agent holds a reply until its first cited sentence, so the first words can take a while
+  const waiting = busy && !(last?.role === "assistant" && textOf(last).trim());
 
-  useEffect(() => save(SAVED.conversation, messages), [messages]);
-  useEffect(() => save(SAVED.lang, lang), [lang]);
-  useEffect(() => save(SAVED.thaiScript, thaiScript), [thaiScript]);
+  useEffect(() => save(SAVED, messages), [messages]);
 
   const send = (text: string) => {
     if (!text.trim() || busy) return;
-    sendMessage({ text }, { body: { lang } });
+    sendMessage({ text });
     setInput("");
+    // a starter's button disappears once asked: the follow-up goes in the box. Not on touch
+    // screens, where focus opens the keyboard over the reply
+    if (matchMedia("(pointer: fine)").matches) box.current?.focus();
   };
 
+  // An empty conversation starts in the middle of the page; once there's a question, the input moves
+  // to the bottom. The form keeps its place among the children, so it stays mounted and focused.
+  const empty = messages.length === 0;
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <Conversation className="min-h-0 flex-1">
-        <ConversationContent>
-          {messages.length === 0 ? (
-            <ConversationEmptyState>
-              <p className="text-muted-foreground">Ask about the Dhamma, or about what weighs on you.</p>
-              <Suggestions>
-                {STARTERS.map((s) => (
-                  <Suggestion key={s} suggestion={s} onClick={send} />
-                ))}
-              </Suggestions>
-            </ConversationEmptyState>
-          ) : (
-            messages.map((m) => <Turn key={m.id} message={m} thaiScript={thaiScript} />)
-          )}
-          {status === "submitted" && <p className="text-sm text-muted-foreground">Searching the canon…</p>}
-          {error && <p className="text-sm text-destructive">The reply didn’t arrive. Check that the agent is running and try again.</p>}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
+    <>
+      <TopBar onNew={busy || empty ? undefined : () => setMessages([])} />
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {empty ? (
+          <Welcome />
+        ) : (
+          <Conversation className="min-h-0 flex-1">
+            <ConversationContent className="px-0">
+              {messages.map((m, i) => (
+                <Turn
+                  key={m.id}
+                  message={m}
+                  question={messages[i - 1]}
+                  fresh={!saved.has(m.id)}
+                  streaming={status === "streaming" && m === last}
+                  waiting={waiting && m === last}
+                />
+              ))}
+              {waiting && last?.role === "user" && (
+                <Message from="assistant" className={ENTER}>
+                  <MessageContent>
+                    <Pending thai={THAI.test(textOf(last))} seed={last.id} />
+                  </MessageContent>
+                </Message>
+              )}
+              {error && (
+                <div role="alert" className={`flex flex-wrap items-center gap-3 text-sm text-destructive ${ENTER}`}>
+                  The reply didn’t arrive.
+                  <Button variant="outline" size="sm" onClick={() => regenerate()}>
+                    <RotateCcwIcon />
+                    Try again
+                  </Button>
+                </div>
+              )}
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
+        )}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
-      >
-        <InputGroup>
-          <InputGroupTextarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                send(input);
-              }
-            }}
-            placeholder="Ask in English or Thai…"
-            maxLength={2000}
-            aria-label="Your message"
-          />
-          <InputGroupAddon align="block-end" className="flex-wrap justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1">
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                size="sm"
-                value={lang}
-                onValueChange={(v) => v && setLang(v as ReplyLang)}
-                aria-label="Reply language"
-              >
-                {REPLY_LANGS.map(([value, label]) => (
-                  <ToggleGroupItem key={value} value={value}>
-                    {label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-              <Toggle variant="outline" size="sm" pressed={thaiScript} onPressedChange={setThaiScript} aria-label="Show Pali in Thai script">
-                อักษรไทย
-              </Toggle>
-            </div>
-            <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <InputGroupButton
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={busy || messages.length === 0}
-                    onClick={() => setMessages([])}
-                    aria-label="New conversation"
-                  >
-                    <SquarePenIcon />
-                  </InputGroupButton>
-                </TooltipTrigger>
-                <TooltipContent>New conversation</TooltipContent>
-              </Tooltip>
-              <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={busy || !input.trim()} aria-label="Send">
-                <ArrowUpIcon />
-              </InputGroupButton>
-            </div>
-          </InputGroupAddon>
-        </InputGroup>
-      </form>
-      <p className="text-center text-xs text-muted-foreground">
-        An AI reflecting on the Pali Canon, not the Buddha himself. Only the sources under each reply quote the texts.
-      </p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send(input);
+          }}
+        >
+          <InputGroup className="bg-card shadow-sm">
+            <InputGroupTextarea
+              ref={box}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  send(input);
+                } else if (e.key === "Escape" && busy) stop();
+              }}
+              placeholder="Ask in English or Thai, or ask for the Pali…"
+              maxLength={2000}
+              aria-label="Your message"
+              autoFocus
+            />
+            <InputGroupAddon align="block-end" className="justify-end">
+              {busy ? (
+                <InputGroupButton type="button" variant="default" size="icon-sm" onClick={() => stop()} aria-label="Stop">
+                  <SquareIcon className="size-3 fill-current" />
+                </InputGroupButton>
+              ) : (
+                <InputGroupButton type="submit" variant="default" size="icon-sm" disabled={!input.trim()} aria-label="Send">
+                  <ArrowUpIcon />
+                </InputGroupButton>
+              )}
+            </InputGroupAddon>
+          </InputGroup>
+        </form>
+        {empty && (
+          <div className="mb-auto flex flex-wrap justify-center gap-2">
+            {STARTERS.map((s) => (
+              <Suggestion key={s} suggestion={s} onClick={send} />
+            ))}
+          </div>
+        )}
+        <p className="text-center text-xs text-muted-foreground">
+          An AI reflecting on the Pali Canon, not the Buddha himself. Only the sources under each reply quote the texts.
+        </p>
+      </div>
+    </>
+  );
+}
+
+// The empty page: who you're talking to, and how to begin.
+function Welcome() {
+  return (
+    <div className={`mt-auto flex flex-col items-center gap-3 pb-3 text-center ${ENTER}`}>
+      <Mark className="size-10 text-chart-3" />
+      <h2 className="font-serif text-2xl text-balance">Ask about the Dhamma, or about what weighs on you.</h2>
+      <p className="text-sm text-muted-foreground">A conversation with the Buddha where every quote is real.</p>
     </div>
   );
 }
 
-function Turn({ message, thaiScript }: { message: BuddhaMessage; thaiScript: boolean }) {
-  const text = message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
+const textOf = (m?: BuddhaMessage) => (m?.parts ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");
+
+interface TurnProps {
+  message: BuddhaMessage;
+  question?: BuddhaMessage; // the message this one answers
+  fresh: boolean; // sent in this visit, so it moves in
+  streaming: boolean; // its words are arriving
+  waiting: boolean; // its first words haven't arrived yet
+}
+
+function Turn({ message, question, fresh, streaming, waiting }: TurnProps) {
+  const text = textOf(message);
   if (message.role === "user") {
     return (
-      <Message from="user">
+      <Message from="user" className={fresh ? `${ENTER} slide-in-from-bottom-2` : undefined}>
         <MessageContent>{text}</MessageContent>
       </Message>
     );
@@ -171,6 +205,9 @@ function Turn({ message, thaiScript }: { message: BuddhaMessage; thaiScript: boo
   const notice = message.parts.find((p) => p.type === "data-notice")?.data;
   const crisis = message.parts.find((p) => p.type === "data-crisis")?.data;
   const pali = message.parts.some((p) => p.type === "data-pali"); // Pali mode: the text is the canon's own words
+  const thaiScript = THAI.test(text) || THAI.test(textOf(question));
+  if (!text.trim() && !waiting && !cards.length && !crisis) return null; // stopped before its first words
+  const enter = fresh ? ENTER : undefined;
   return (
     <Message from="assistant">
       <MessageContent className="w-full">
@@ -179,22 +216,48 @@ function Turn({ message, thaiScript }: { message: BuddhaMessage; thaiScript: boo
             {notice}
           </Badge>
         )}
-        <div lang={pali ? "pi" : undefined}>
-          <MessageResponse components={{ a: ReplyLink }}>
-            {stripCitations(pali && thaiScript ? quotesToThaiScript(text) : text)}
-          </MessageResponse>
-        </div>
-        {crisis && <Hotlines crisis={crisis} />}
-        <SourceCards cards={cards} thaiScript={thaiScript} />
+        {waiting ? (
+          <Pending thai={thaiScript} seed={question?.id ?? message.id} quiet={!!crisis} />
+        ) : (
+          // his words in the serif: the app's own chrome stays in the sans
+          <div lang={pali ? "pi" : undefined} className="font-serif text-base leading-7">
+            <MessageResponse components={{ a: ReplyLink }} animated={WORDS} isAnimating={streaming}>
+              {stripCitations(pali && thaiScript ? quotesToThaiScript(text) : text)}
+            </MessageResponse>
+          </div>
+        )}
+        {crisis && <Hotlines crisis={crisis} className={enter} />}
+        <SourceCards cards={cards} thaiScript={thaiScript} className={enter} />
       </MessageContent>
     </Message>
   );
 }
 
-// The numbers come from policy.yaml through the agent, never from the model (PRD §6).
-function Hotlines({ crisis }: { crisis: Crisis }) {
+// Holds a reply's place until its first words arrive: a breath before he speaks, and a line of
+// goodwill, never words about searching. The question's id picks the line, so it stays put while the
+// placeholder moves into the reply.
+function Pending({ thai, seed, quiet = false }: { thai: boolean; seed: string; quiet?: boolean }) {
+  const line = BLESSINGS[[...seed].reduce((n, c) => n + c.charCodeAt(0), 0) % BLESSINGS.length];
   return (
-    <Alert>
+    <div role="status" className="flex min-h-7 items-start gap-2.5">
+      <span aria-hidden className="mt-2.5 size-2 shrink-0 animate-breathe rounded-full bg-primary" />
+      {!quiet && (
+        <p aria-hidden className="flex flex-col">
+          <span lang="pi" className={`font-serif text-[0.9375rem] leading-7 text-foreground/75 ${thai ? "" : "italic"}`}>
+            {thai ? toThaiScript(line.pi) : line.pi}
+          </span>
+          <span className="text-xs text-muted-foreground">{thai ? line.th : line.en}</span>
+        </p>
+      )}
+      <span className="sr-only">{thai ? "กำลังตอบ" : "Replying"}</span>
+    </div>
+  );
+}
+
+// The numbers come from policy.yaml through the agent, never from the model (PRD §6).
+function Hotlines({ crisis, className }: { crisis: Crisis; className?: string }) {
+  return (
+    <Alert className={className}>
       <PhoneIcon />
       <AlertTitle>{crisis.title}</AlertTitle>
       <AlertDescription>
