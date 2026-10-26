@@ -2,6 +2,7 @@
 // the agent is the door. It holds the session token in an HttpOnly cookie, out of reach of the
 // page's scripts, and hands it to the core as a bearer token.
 import express, { type Request, type Response } from "express";
+import { counter } from "./limit.ts";
 
 const COOKIE = "buddha_session";
 const TRIES = 20; // sign-ins and sign-ups from one address in a window
@@ -20,15 +21,7 @@ accounts.use(["/api/auth", "/api/chats"], (req, res, next) => {
   res.status(403).json({ error: "Only the web app can do that." });
 });
 
-// Each address's counted tries. Behind a proxy, TRUST_PROXY makes req.ip the client's (app.ts).
-// ponytail: counted in this process's memory; a shared store if the agent runs as several instances
-const tries = new Map<string, number[]>();
-const recent = (address: string, now = Date.now()) => (tries.get(address) ?? []).filter((t) => now - t < WINDOW_MS);
-function count(address: string) {
-  const now = Date.now();
-  tries.set(address, [...recent(address, now), now]);
-  if (tries.size > 10_000) for (const [k, v] of tries) if (now - (v.at(-1) ?? 0) > WINDOW_MS) tries.delete(k);
-}
+const tries = counter(WINDOW_MS); // each address's sign-ups and failed sign-ins
 
 // Calls the core as whoever the cookie says is signed in, if anyone.
 function ask(req: Request, path: string, init: RequestInit = {}) {
@@ -38,6 +31,16 @@ function ask(req: Request, path: string, init: RequestInit = {}) {
     headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
     signal: AbortSignal.timeout(10_000),
   });
+}
+
+/** Whether the cookie belongs to a live session, as the core sees it. */
+export async function signedIn(req: Request) {
+  if (!req.get("cookie")?.includes(`${COOKIE}=`)) return false;
+  try {
+    return (await ask(req, "/v1/me")).ok;
+  } catch {
+    return false;
+  }
 }
 
 // Hands the core's answer on as it came.
@@ -60,12 +63,12 @@ const route = (fn: (req: Request, res: Response) => Promise<void>) => async (req
 const enter = (path: string, countEvery: boolean) =>
   route(async (req, res) => {
     const address = req.ip ?? "";
-    if (recent(address).length >= TRIES) {
+    if (tries.used(address) >= TRIES) {
       res.status(429).json({ error: "Too many tries. Wait a few minutes." });
       return;
     }
     const answer = await ask(req, path, { method: "POST", body: JSON.stringify(req.body ?? {}) });
-    if (countEvery || !answer.ok) count(address);
+    if (countEvery || !answer.ok) tries.count(address);
     if (!answer.ok) return pass(res, answer);
     const { user, token, expires } = (await answer.json()) as { user: unknown; token: string; expires: number };
     res.cookie(COOKIE, token, { httpOnly: true, sameSite: "lax", secure: req.secure, path: "/api", expires: new Date(expires) });
