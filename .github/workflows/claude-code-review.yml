@@ -14,6 +14,8 @@ concurrency:
 
 jobs:
   claude-review:
+    # A fork's PR gets no secrets, so there's no token to review it with
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
