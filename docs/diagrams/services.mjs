@@ -42,7 +42,7 @@ const VIEWS = {
       box('sync', 'go', 'buddha sync', ['Go CLI · batch', 'download · clean · embed']),
       box('pg', 'db', 'Postgres 18', ['pgvector + pg_trgm · :5432', 'suttas · paras · vectors', 'users · sessions · chats']),
       box('openrouter', 'ext', 'OpenRouter', ['HTTPS · :443', 'chat · guard · embeddings · judge']),
-      box('sources', 'ext', 'Sources', ['VRI Pali XML · Thai Royal PDFs', 'Ṭhānissaro pages · public-domain scans']),
+      box('sources', 'ext', 'Sources', ['VRI Pali XML · Thai Royal PDFs', 'Ṭhānissaro sutta pages']),
     ],
     edges: [
       E(1, 'browser', 'web', '1 pages'),
