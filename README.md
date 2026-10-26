@@ -11,12 +11,13 @@
 
 <p align="center">
   <a href="https://buddha.maxlim.xyz"><b>Try it live</b></a> ·
+  <a href="docs/media/showcase.mp4">Watch the showcase</a> ·
   <a href="docs/media/demo.mp4">Watch the demo video</a> ·
   <a href="docs/write-up.md">Read the write-up</a> ·
   <a href="docs/PRD.md">Read the design</a>
 </p>
 
-![A question about suffering with its sources open, the answer again in Pali, a popular quote checked, a lottery request and a crisis message](docs/media/demo.gif)
+[![Buddha GPT in under a minute: a question about anger, the Pali verses behind the answer, a reply in Thai, and a popular quote checked against the texts](docs/media/showcase.gif)](docs/media/showcase.mp4)
 
 Ask about the Dhamma, or about what weighs on you. The Buddha answers in your language, drawing on the Pali Canon, and **Sources** under each reply opens the passages he drew on, word for word from the canon in Pali, Thai and English. The model never writes scripture: it chooses passages, and code quotes them.
 
