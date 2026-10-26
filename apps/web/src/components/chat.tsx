@@ -10,6 +10,7 @@ import { Conversation, ConversationContent, ConversationScrollButton } from "@/c
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Suggestion } from "@/components/ai-elements/suggestion";
 import { Account } from "@/components/account";
+import { BuiltBy } from "@/components/built-by";
 import { History } from "@/components/history";
 import { SourceCards } from "@/components/source-cards";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -291,6 +292,7 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
           ))}
         </div>
       )}
+      {empty && <BuiltBy className={ENTER} />}
       <p className={empty ? "border-t border-hero-line pt-4 text-center text-[0.8125rem] text-foreground/75" : "text-center text-xs text-muted-foreground"}>
         An AI reflecting on the Pali Canon, not the Buddha himself. Only the sources under each reply quote the texts.
       </p>
