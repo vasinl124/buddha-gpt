@@ -32,7 +32,10 @@ export function History({ chats, current, disabled, onOpen, onNew, onDelete }: H
   const { isMobile, setOpenMobile } = useSidebar();
   const [confirm, setConfirm] = useState<string | null>(null);
   const [now] = useState(Date.now); // the day's sections move at midnight on the next visit
-  const done = () => isMobile && setOpenMobile(false);
+  const done = () => {
+    setConfirm(null);
+    if (isMobile) setOpenMobile(false);
+  };
 
   return (
     <Sidebar>
@@ -79,8 +82,11 @@ export function History({ chats, current, disabled, onOpen, onNew, onDelete }: H
                       aria-label={asking ? "Delete this conversation" : "Delete conversation"}
                       className={asking ? "aspect-auto w-auto bg-sidebar-accent px-1.5 text-xs font-medium text-destructive hover:text-destructive" : undefined}
                       onBlur={() => setConfirm(null)}
-                      onClick={() => {
-                        if (!asking) return setConfirm(chat.id);
+                      onClick={(e) => {
+                        if (!asking) {
+                          e.currentTarget.focus(); // Safari doesn't focus a clicked button, and its blur undoes the ask
+                          return setConfirm(chat.id);
+                        }
                         setConfirm(null);
                         onDelete(chat.id);
                       }}
