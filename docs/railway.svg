@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 796 1123" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title>buddha-gpt on Railway · one public domain</title>
+<desc>The hosted app on Railway, numbered 1 to 7 to match the table in PRD section 7.4. Only the web service has a public domain: it proxies /agent to the agent over the private network, so the session cookie is first-party. The agent, the core and Postgres are private. The dashed arrow is the one-time load of the canon.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#374151"/></marker></defs>
+<rect width="796" height="1123" fill="#FFFFFF"/>
+<text x="40" y="42" font-size="22" font-weight="700" fill="#111827">buddha-gpt on Railway · one public domain</text>
+<line x1="40" y1="70" x2="80" y2="70" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="90" y="74" font-size="12.5" fill="#374151">a user is waiting</text>
+<line x1="240" y1="70" x2="280" y2="70" stroke="#374151" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<text x="290" y="74" font-size="12.5" fill="#374151">batch job: nobody waits</text>
+<rect x="40" y="87" width="14" height="14" rx="3" fill="#E8F0FE" stroke="#3B6FD4"/>
+<text x="60" y="98" font-size="12.5" fill="#374151">TypeScript</text>
+<rect x="155" y="87" width="14" height="14" rx="3" fill="#E3F5F2" stroke="#1B8A7A"/>
+<text x="175" y="98" font-size="12.5" fill="#374151">Go</text>
+<rect x="212" y="87" width="14" height="14" rx="3" fill="#F0EBFA" stroke="#6B4FBB"/>
+<text x="232" y="98" font-size="12.5" fill="#374151">database</text>
+<rect x="312" y="87" width="14" height="14" rx="3" fill="#F3F4F6" stroke="#9CA3AF"/>
+<text x="332" y="98" font-size="12.5" fill="#374151">external</text>
+<rect x="174" y="138" width="133" height="53" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
+<text x="240.5" y="161" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Browser</text>
+<text x="240.5" y="178" text-anchor="middle" font-size="12" fill="#4B5563">phone or laptop</text>
+<rect x="112" y="337" width="258" height="70" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
+<text x="241" y="360" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">web</text>
+<text x="241" y="377" text-anchor="middle" font-size="12" fill="#4B5563">Next.js · the public HTTPS domain</text>
+<text x="241" y="394" text-anchor="middle" font-size="12" fill="#4B5563">pages · proxies /agent/*</text>
+<rect x="115" y="553" width="251" height="70" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
+<text x="240.5" y="576" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">agent</text>
+<text x="240.5" y="593" text-anchor="middle" font-size="12" fill="#4B5563">Express + AI SDK · private :7891</text>
+<text x="240.5" y="610" text-anchor="middle" font-size="12" fill="#4B5563">chat turns · accounts · limits</text>
+<rect x="228" y="769" width="258" height="70" rx="10" fill="#E3F5F2" stroke="#1B8A7A" stroke-width="1.5"/>
+<text x="357" y="792" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">core</text>
+<text x="357" y="809" text-anchor="middle" font-size="12" fill="#4B5563">Go · buddha serve · private :7890</text>
+<text x="357" y="826" text-anchor="middle" font-size="12" fill="#4B5563">search · cards · accounts</text>
+<rect x="372" y="985" width="244" height="70" rx="10" fill="#F0EBFA" stroke="#6B4FBB" stroke-width="1.5"/>
+<text x="494" y="1008" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">db</text>
+<text x="494" y="1025" text-anchor="middle" font-size="12" fill="#4B5563">pgvector/pgvector:pg18 · volume</text>
+<text x="494" y="1042" text-anchor="middle" font-size="12" fill="#4B5563">canon · vectors · users · chats</text>
+<rect x="135" y="985" width="209" height="70" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+<text x="239.5" y="1008" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">OpenRouter</text>
+<text x="239.5" y="1025" text-anchor="middle" font-size="12" fill="#4B5563">HTTPS · :443</text>
+<text x="239.5" y="1042" text-anchor="middle" font-size="12" fill="#4B5563">guard · reply · embeddings</text>
+<rect x="514" y="786" width="230" height="53" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+<text x="629" y="809" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Your machine</text>
+<text x="629" y="826" text-anchor="middle" font-size="12" fill="#4B5563">pg_dump of the local database</text>
+<polyline points="241,191 241,337" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="241,407 241,553" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="282,623 282,721 357,721 357,769" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="400,839 400,855 453,855 453,985" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="199,623 199,937 205,937 205,985" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="314,839 314,855 322,855 322,937 274,937 274,985" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="629,839 629,937 535,937 535,985" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<rect x="52" y="255" width="186" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="145" y="268" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">1</tspan> HTTPS · pages, /agent/*</text>
+<rect x="114" y="471" width="124" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="176" y="484" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">2</tspan> private · HTTP</text>
+<rect x="286" y="687" width="159" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="365.5" y="700" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">3</tspan> private · HTTP/JSON</text>
+<rect x="333" y="903" width="117" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="391.5" y="916" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">4</tspan> private · SQL</text>
+<rect x="79" y="795" width="117" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="137.5" y="808" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">5</tspan> guard + reply</text>
+<rect x="216" y="903" width="103" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="267.5" y="916" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">6</tspan> embed query</text>
+<rect x="467" y="903" width="159" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="546.5" y="916" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">7</tspan> one-time pg_restore</text>
+<text x="40" y="1101" font-size="12.5" fill="#4B5563">Numbers match the hosting table in PRD §7.4.</text>
+</svg>

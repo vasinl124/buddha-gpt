@@ -65,6 +65,10 @@ On pull requests that touch the prompts, the policy, the agent or retrieval, Git
 
 The monorepo layout, commands and conventions are in [AGENTS.md](AGENTS.md).
 
+## Deploy
+
+It runs on Railway as four services: `db` (the `pgvector/pgvector:pg18` image on a volume), `core`, `agent` and `web`. Each builds from the repo root with its own Dockerfile. Only `web` has a public domain: it proxies `/agent/*` to the agent over the private network, so signing in works in every browser. PRD §7.4 lists each service's settings and how the canon was loaded.
+
 ## Texts and licences
 
 The source texts aren't in this repo. `pnpm sync` downloads them:

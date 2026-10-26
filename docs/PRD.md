@@ -213,6 +213,31 @@ buddha-gpt/
 - Claude Opus 5.5 and Sonnet 5.5 reject a forced `tool_choice`, so code runs the first search itself and the model only decides on follow-ups.
 - Haiku 5.5 and DeepSeek V4 think by default. The guard turns reasoning off, or the thinking spends its output cap and cuts the JSON short. So the guard needs a model whose providers take a strict JSON schema and let reasoning be turned off. Of the cheapest models, gpt-oss-20b refuses ("Reasoning is mandatory"), and OpenRouter finds no endpoint for Ling 3.0 Flash, Qwen 3.7 Flash or Mistral Nemo.
 
+### 7.4 Hosting on Railway
+
+![The hosted app on Railway, numbered to match the table below](railway.svg)
+
+| # | From → To | How it travels | What flows |
+|---|---|---|---|
+| 1 | Browser → web | HTTPS, the one public domain | Pages, and the agent's routes under `/agent/*` |
+| 2 | web → agent | Railway's private network, HTTP (a Next.js rewrite) | `/agent/*` without the prefix: chat turns (SSE), accounts, saved conversations |
+| 3 | agent → core | Private network, HTTP/JSON | As link 4 in §7.1 |
+| 4 | core → db | Private network, SQL | As link 5 in §7.1 |
+| 5 | agent → OpenRouter | HTTPS | The guard and the reply |
+| 6 | core → OpenRouter | HTTPS | Query embeddings |
+| 7 | Your machine → db | A TCP proxy opened for the load, then deleted | `pg_restore` of the local canon: a `pg_dump` without the account tables' rows |
+
+Railway gives each service a domain of its own under `up.railway.app`, a public suffix, so browsers treat every service as a separate site, and Safari wouldn't send the agent's cookie to the web app. So there's one public domain: the web app proxies `/agent/*` to the agent, which makes the cookie first-party. Its path is `/`, so it covers the prefix. Railway's edge replaces any `X-Forwarded-For` with `<visitor>, <edge address>` and the web app's proxy passes it on, so the agent trusts two hops to find the visitor (`TRUST_PROXY=2`; with 1, every visitor shared the edge's address and its limits). Its stream carries `Cache-Control: no-transform`, so the proxy doesn't gzip it and hold the words back.
+
+| Service | Built from | Settings |
+|---|---|---|
+| db | the `pgvector/pgvector:pg18` image | A volume at `/var/lib/postgresql`; `POSTGRES_PASSWORD`, `POSTGRES_DB=buddha_gpt` |
+| core | `services/core/Dockerfile` | `DATABASE_URL=postgres://postgres:${{db.POSTGRES_PASSWORD}}@db.railway.internal:5432/buddha_gpt`, `OPENROUTER_API_KEY` |
+| agent | `services/agent/Dockerfile` | `RETRIEVAL_URL=http://core.railway.internal:7890`, `CORS_ORIGINS=https://<web domain>`, `TRUST_PROXY=2`, `OPENROUTER_API_KEY` |
+| web | `apps/web/Dockerfile` | `AGENT_URL=http://agent.railway.internal:7891` and `NEXT_PUBLIC_API_URL=/agent`, read at build time; the public domain on port 5005 |
+
+Each service builds from the repo root with its own Dockerfile, chosen by `RAILWAY_DOCKERFILE_PATH`. `railway up --service <name>` deploys one from a checkout.
+
 ## 8. Data and RAG
 
 ### 8.1 Sources

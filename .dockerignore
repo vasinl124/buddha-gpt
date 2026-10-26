@@ -1,0 +1,9 @@
+# The images build from the repo root; they need the workspace's package files and their own code.
+**/node_modules
+**/.next
+.git
+.claude
+.env
+data
+docs
+evals

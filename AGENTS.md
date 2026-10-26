@@ -42,7 +42,7 @@ pnpm test                 # TypeScript tests (agent, web), then go test
 pnpm sync                 # download, parse, load and embed the texts
 pnpm search "anatta"      # the top passages for a query (hybrid, or lexical without a key)
 pnpm eval                 # evals/cases against the agent, which must run with EVAL_MODE=1
-pnpm diagram              # regenerate docs/services.svg
+pnpm diagram              # regenerate docs/services.svg and docs/railway.svg
 pnpm media                # re-capture the README screenshots and demo (docs/media/) from the running app
 ```
 
@@ -57,7 +57,7 @@ pnpm media                # re-capture the README screenshots and demo (docs/med
 
 ## Environment
 
-One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `AGENT_MODEL`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `CORE_ADDR`, `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, `TRUST_PROXY`, `EVAL_MODE`, `EMBED_MODEL`, `EMBED_BASE_URL`. The Go core, the agent and Docker Compose read it, and every setting has a local default. With no `OPENROUTER_API_KEY`, a mock model answers and search is lexical only. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
+One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `AGENT_MODEL`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `CORE_ADDR`, `NEXT_PUBLIC_API_URL`, `AGENT_URL`, `CORS_ORIGINS`, `TRUST_PROXY`, `EVAL_MODE`, `EMBED_MODEL`, `EMBED_BASE_URL`. The Go core, the agent and Docker Compose read it, and every setting has a local default. With no `OPENROUTER_API_KEY`, a mock model answers and search is lexical only. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
 
 ## Rules
 

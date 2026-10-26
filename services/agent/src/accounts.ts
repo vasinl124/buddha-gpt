@@ -58,7 +58,8 @@ const route = (fn: (req: Request, res: Response) => Promise<void>) => async (req
   }
 };
 
-// Signs up or in through the core, then keeps the session in the cookie, Secure over HTTPS. Every
+// Signs up or in through the core, then keeps the session in the cookie, Secure over HTTPS. Its path
+// is the whole site, since a hosted web app reaches the agent under its own /agent prefix. Every
 // sign-up counts against the address, so it can't make accounts in bulk; a sign-in counts when it fails.
 const enter = (path: string, countEvery: boolean) =>
   route(async (req, res) => {
@@ -71,7 +72,7 @@ const enter = (path: string, countEvery: boolean) =>
     if (countEvery || !answer.ok) tries.count(address);
     if (!answer.ok) return pass(res, answer);
     const { user, token, expires } = (await answer.json()) as { user: unknown; token: string; expires: number };
-    res.cookie(COOKIE, token, { httpOnly: true, sameSite: "lax", secure: req.secure, path: "/api", expires: new Date(expires) });
+    res.cookie(COOKIE, token, { httpOnly: true, sameSite: "lax", secure: req.secure, path: "/", expires: new Date(expires) });
     res.status(answer.status).json({ user });
   });
 
@@ -83,7 +84,7 @@ accounts.post(
   "/api/auth/logout",
   route(async (req, res) => {
     await ask(req, "/v1/sessions", { method: "DELETE" });
-    res.clearCookie(COOKIE, { path: "/api" }).status(204).end();
+    res.clearCookie(COOKIE, { path: "/" }).status(204).end();
   }),
 );
 accounts.get("/api/auth/me", route(async (req, res) => pass(res, await ask(req, "/v1/me"))));

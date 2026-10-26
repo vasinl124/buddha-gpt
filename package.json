@@ -15,7 +15,7 @@
     "eval": "cd services/core && go run ./cmd/buddha eval",
     "lint": "pnpm -r lint && pnpm -r check && cd services/core && go vet ./...",
     "test": "pnpm -r test && cd services/core && go test ./...",
-    "diagram": "node docs/diagrams/services.mjs docs/services.svg",
+    "diagram": "node docs/diagrams/services.mjs docs/services.svg && node docs/diagrams/services.mjs docs/railway.svg railway",
     "media": "node docs/media/capture.mjs"
   },
   "devDependencies": {
