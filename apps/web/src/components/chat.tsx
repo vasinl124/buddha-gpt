@@ -210,7 +210,7 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
         <Welcome />
       ) : (
         <Conversation className="min-h-0 flex-1">
-          <ConversationContent className="mx-auto w-full max-w-2xl px-0 pt-2 pb-14 min-[1440px]:pb-6">
+          <ConversationContent className="mx-auto w-full max-w-2xl px-0 pt-2 pb-6">
             {messages.map((m, i) => (
               <Turn
                 key={m.id}
@@ -243,7 +243,7 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
       )}
 
       <form
-        className={`relative mx-auto w-full max-w-2xl ${empty ? "max-[1439px]:mt-8" : ""}`}
+        className="mx-auto w-full max-w-2xl"
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
@@ -280,7 +280,6 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
             )}
           </InputGroupAddon>
         </InputGroup>
-        <BuiltBy />
       </form>
       {empty && (
         <div className="mb-auto flex flex-wrap items-center justify-center gap-2 pt-2">
@@ -293,6 +292,7 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
           ))}
         </div>
       )}
+      {empty && <BuiltBy className={ENTER} />}
       <p className={empty ? "border-t border-hero-line pt-4 text-center text-[0.8125rem] text-foreground/75" : "text-center text-xs text-muted-foreground"}>
         An AI reflecting on the Pali Canon, not the Buddha himself. Only the sources under each reply quote the texts.
       </p>
