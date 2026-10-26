@@ -1,7 +1,7 @@
 "use client";
 
 import { SquarePenIcon, Trash2Icon } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -24,11 +24,12 @@ interface HistoryProps {
   onOpen: (id: string) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
+  footer: ReactNode; // where they're kept, and signing in or out
 }
 
-// The conversations kept in this browser, newest first and grouped by day, as in ChatGPT. Opening one,
-// or starting anew, closes the drawer on a phone. Deleting asks once more, on the same button.
-export function History({ chats, current, disabled, onOpen, onNew, onDelete }: HistoryProps) {
+// The conversations, newest first and grouped by day, as in ChatGPT. Opening one, or starting anew,
+// closes the drawer on a phone. Deleting asks once more, on the same button.
+export function History({ chats, current, disabled, onOpen, onNew, onDelete, footer }: HistoryProps) {
   const { isMobile, setOpenMobile } = useSidebar();
   const [confirm, setConfirm] = useState<string | null>(null);
   const [now] = useState(Date.now); // the day's sections move at midnight on the next visit
@@ -100,9 +101,7 @@ export function History({ chats, current, disabled, onOpen, onNew, onDelete }: H
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarFooter>
-        <p className="px-2 pb-1 text-xs text-muted-foreground">Kept in this browser only.</p>
-      </SidebarFooter>
+      <SidebarFooter>{footer}</SidebarFooter>
     </Sidebar>
   );
 }

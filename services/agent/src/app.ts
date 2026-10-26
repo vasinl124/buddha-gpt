@@ -1,6 +1,7 @@
 import type { AgentHealth, Status } from "@buddha-gpt/shared";
 import cors from "cors";
 import express from "express";
+import { accounts, origins } from "./accounts.ts";
 import { chat, type BuddhaMessage } from "./chat.ts";
 
 // Longer than the core's 1 s database probe, so a slow database shows as db "down", not core "down".
@@ -9,7 +10,14 @@ const MAX_CHARS = 2000; // the longest message the web input allows
 
 export const app = express();
 
-app.use(cors({ origin: (process.env.CORS_ORIGINS || "http://localhost:5005").split(",") }));
+// Behind a reverse proxy, TRUST_PROXY says which hops to believe for the client's address and
+// protocol: Express's "trust proxy", a hop count such as 1 or addresses such as loopback.
+const trust = process.env.TRUST_PROXY;
+if (trust) app.set("trust proxy", /^\d+$/.test(trust) ? Number(trust) : trust);
+
+// credentials: the account routes carry the session cookie
+app.use(cors({ origin: origins(), credentials: true }));
+app.use(accounts);
 
 // One chat turn, streamed back as the AI SDK's UI message stream (SSE).
 app.post("/api/chat", express.json({ limit: "1mb" }), async (req, res) => {

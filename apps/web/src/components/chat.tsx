@@ -9,13 +9,16 @@ import type { AnimateOptions } from "streamdown";
 import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Suggestion } from "@/components/ai-elements/suggestion";
+import { Account } from "@/components/account";
 import { History } from "@/components/history";
 import { SourceCards } from "@/components/source-cards";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Frame, Mark } from "@/components/top-bar";
+import { deleteChat, leave, listChats, openChat, putChat, whoami, type User } from "@/lib/account";
 import { load, save, title, upsert, watch, type BuddhaMessage, type SavedChat } from "@/lib/history";
 import { quotesToThaiScript, toThaiScript } from "@/lib/pali";
 
@@ -35,43 +38,118 @@ const BLESSINGS = [
   { pi: "Mettañca sabbalokasmi", en: "goodwill for the whole world", th: "เมตตาไปทั่วทั้งโลก" },
 ];
 
-// The conversations kept in this browser (PRD §11): the sidebar lists them and the chat shows one. The
-// chat is keyed by its conversation, so opening another starts it afresh with that one's messages.
+// The conversations (PRD §11): a guest's kept in this browser, an account's in the core. Until the
+// agent says who's signed in, the page shows its frame.
 export function Chat() {
-  const [chats, setChats] = useState<SavedChat[]>(() => load());
-  const [current, setCurrent] = useState(() => chats[0]?.id ?? generateId());
-  const [busy, setBusy] = useState(false);
-  const unsaved = !chats.some((c) => c.id === current); // a new conversation: nothing to start over from
+  const [user, setUser] = useState<User | null>(); // undefined: not known yet
+  useEffect(() => {
+    whoami().then(setUser);
+  }, []);
+  if (user === undefined) return <Frame />;
+  // signing in or out starts afresh, from wherever that person's conversations are kept
+  return <Conversations key={user?.username ?? ""} user={user} onUser={setUser} />;
+}
 
-  useEffect(() => save(chats), [chats]);
-  useEffect(() => watch(setChats), []); // another tab saved: take its list
+const NONE: BuddhaMessage[] = [];
+
+// The sidebar lists the conversations and the chat shows one. The chat is keyed by its conversation,
+// so opening another starts it afresh with that one's messages.
+function Conversations({ user, onUser }: { user: User | null; onUser: (user: User | null) => void }) {
+  // an account's list comes from the core, and each conversation's messages when it's opened
+  const [chats, setChats] = useState<SavedChat[] | undefined>(() => (user ? undefined : load()));
+  const [current, setCurrent] = useState(() => chats?.[0]?.id ?? generateId());
+  const [busy, setBusy] = useState(false);
+  const [lost, setLost] = useState(false); // the account couldn't be reached, so what's on screen isn't kept
+  const open = chats?.find((c) => c.id === current);
+
+  useEffect(() => {
+    if (!user) return;
+    listChats().then(
+      (list) => {
+        setChats(list);
+        if (list[0]) setCurrent(list[0].id);
+      },
+      () => {
+        setChats([]);
+        setLost(true);
+      },
+    );
+  }, [user]);
+  useEffect(() => {
+    if (!user && chats) save(chats);
+  }, [user, chats]);
+  useEffect(() => (user ? undefined : watch(setChats)), [user]); // another tab saved: take its list
+  useEffect(() => {
+    if (!user || !open || open.messages) return;
+    openChat(open.id).then(
+      (messages) => setChats((all) => all?.map((c) => (c.id === open.id ? { ...c, messages } : c))),
+      () => setLost(true),
+    );
+  }, [user, open]);
 
   // called as a question goes out and as its reply ends, never on every streamed word
   const keep = useCallback(
     (messages: BuddhaMessage[]) => {
-      if (!messages.length) return;
-      setChats((all) => {
-        const kept = all.find((c) => c.id === current)?.messages;
-        // nothing new, as when a conversation is only opened: it keeps its place in the list
-        if (kept?.length === messages.length && kept.at(-1)?.id === messages.at(-1)?.id) return all;
-        return upsert(all, { id: current, title: title(messages), updated: Date.now(), messages });
-      });
+      const chat = { id: current, title: title(messages), updated: Date.now(), messages };
+      setChats((all) => upsert(all ?? [], chat));
+      if (user) putChat(chat).catch(() => setLost(true));
     },
-    [current],
+    [current, user],
   );
   const fresh = () => setCurrent(generateId());
   const remove = (id: string) => {
-    setChats((all) => all.filter((c) => c.id !== id));
+    setChats((all) => all?.filter((c) => c.id !== id));
+    if (user) deleteChat(id).catch(() => setLost(true));
     if (id === current) fresh();
   };
+  // signing in moves this browser's conversations into the account; any that don't make it stay here
+  const signIn = async (signedIn: User) => {
+    const local = chats ?? [];
+    const moved = await Promise.allSettled(local.map(putChat));
+    save(local.filter((_, i) => moved[i].status === "rejected"));
+    onUser(signedIn);
+  };
+  const signOut = () => leave().finally(() => onUser(null));
 
+  if (!chats) return <Frame />;
   return (
     <Frame
-      sidebar={<History chats={chats} current={current} disabled={busy} onOpen={setCurrent} onNew={fresh} onDelete={remove} />}
-      onNew={busy || unsaved ? undefined : fresh}
+      sidebar={
+        <History
+          chats={chats}
+          current={current}
+          disabled={busy}
+          onOpen={setCurrent}
+          onNew={fresh}
+          onDelete={remove}
+          footer={<Account user={user} onSignIn={signIn} onSignOut={signOut} />}
+        />
+      }
+      onNew={busy || !open ? undefined : fresh}
     >
-      <ChatBody key={current} initial={chats.find((c) => c.id === current)?.messages ?? []} onChange={keep} onBusy={setBusy} />
+      {lost && (
+        <p role="alert" className="pb-2 text-center text-xs text-destructive">
+          Your account can&apos;t be reached right now, so this conversation isn&apos;t being kept. Reload to try again.
+        </p>
+      )}
+      {open && !open.messages ? (
+        <Opening />
+      ) : (
+        <ChatBody key={current} initial={open?.messages ?? NONE} onChange={keep} onBusy={setBusy} />
+      )}
     </Frame>
+  );
+}
+
+// An account's conversation on its way from the core.
+function Opening() {
+  return (
+    <div role="status" aria-label="Opening the conversation" className="flex flex-1 flex-col gap-3 pt-4">
+      <Skeleton className="ml-auto h-10 w-2/5 rounded-2xl" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-11/12" />
+      <Skeleton className="h-4 w-3/5" />
+    </div>
   );
 }
 
@@ -95,9 +173,11 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
   // the agent holds a reply until its first cited sentence, so the first words can take a while
   const waiting = busy && !(last?.role === "assistant" && textOf(last).trim());
 
+  // only what's new since it was opened or last kept, so opening one leaves its place in the list
   useEffect(() => {
-    if (status !== "streaming") onChange(messages);
-  }, [messages, status, onChange]);
+    const same = messages.length === initial.length && messages.at(-1)?.id === initial.at(-1)?.id;
+    if (status !== "streaming" && !same) onChange(messages);
+  }, [messages, status, initial, onChange]);
   useEffect(() => onBusy(busy), [busy, onBusy]);
 
   const send = (text: string) => {

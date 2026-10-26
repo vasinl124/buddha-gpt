@@ -4,7 +4,7 @@ Talk with the Buddha in English, Thai or Pali: a grounded RAG agent where every 
 
 ## Architecture
 
-- **The web app is a thin client.** The agent owns the chat turn (guard, retrieval, the model call, the checks), and the Go core owns the data (canon, vectors, search). Never put business logic in Next.js.
+- **The web app is a thin client.** The agent owns the chat turn (guard, retrieval, the model call, the checks), and the Go core owns the data (canon, vectors, search, and accounts with their conversations). Never put business logic in Next.js.
 - **The model chooses, code quotes.** The model picks passage IDs; code fills every card and quote from the database. Model output never becomes scripture text.
 
 ```text
@@ -57,7 +57,7 @@ pnpm media                # re-capture the README screenshots and demo (docs/med
 
 ## Environment
 
-One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `AGENT_MODEL`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, `EVAL_MODE`, `EMBED_MODEL`, `EMBED_BASE_URL`. The Go core, the agent and Docker Compose read it, and every setting has a local default. With no `OPENROUTER_API_KEY`, a mock model answers and search is lexical only. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
+One root `.env` (git-ignored), documented in `.env.example`: `OPENROUTER_API_KEY`, `AGENT_MODEL`, `POSTGRES_PORT`, `DATABASE_URL`, `RETRIEVAL_URL`, `CORE_ADDR`, `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, `TRUST_PROXY`, `EVAL_MODE`, `EMBED_MODEL`, `EMBED_BASE_URL`. The Go core, the agent and Docker Compose read it, and every setting has a local default. With no `OPENROUTER_API_KEY`, a mock model answers and search is lexical only. If port 5432 is taken, set `POSTGRES_PORT` and the port in `DATABASE_URL` to match.
 
 ## Rules
 
