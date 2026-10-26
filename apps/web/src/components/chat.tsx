@@ -164,7 +164,8 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
   const box = useRef<HTMLTextAreaElement>(null);
   const { messages, sendMessage, status, error, stop, regenerate } = useChat<BuddhaMessage>({
     messages: initial,
-    transport: new DefaultChatTransport({ api: `${API}/api/chat` }),
+    // with the session cookie, so a signed-in person gets their larger share of turns
+    transport: new DefaultChatTransport({ api: `${API}/api/chat`, credentials: "include" }),
   });
   const busy = status === "submitted" || status === "streaming";
   // a conversation saved from an earlier visit shows at once; only new messages move
@@ -218,7 +219,7 @@ function ChatBody({ initial, onChange, onBusy }: ChatBodyProps) {
             )}
             {error && (
               <div role="alert" className={`flex flex-wrap items-center gap-3 text-sm text-destructive ${ENTER}`}>
-                The reply didn’t arrive.
+                {refusal(error) ?? "The reply didn’t arrive."}
                 <Button variant="outline" size="sm" onClick={() => regenerate()}>
                   <RotateCcwIcon />
                   Try again
@@ -288,6 +289,16 @@ function Welcome() {
       <p className="text-sm text-muted-foreground">A conversation with the Buddha where every quote is real.</p>
     </div>
   );
+}
+
+// The agent's own words when it turns a message away, such as the hourly limit: the error carries its
+// JSON body.
+function refusal(error: Error): string | undefined {
+  try {
+    return (JSON.parse(error.message) as { error?: string }).error;
+  } catch {
+    return undefined;
+  }
 }
 
 const textOf = (m?: BuddhaMessage) => (m?.parts ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");

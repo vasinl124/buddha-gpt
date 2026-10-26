@@ -37,6 +37,11 @@ function fakeRetrieval() {
     req.on("end", () => {
       res.setHeader("Content-Type", "application/json");
       const path = new URL(req.url ?? "", "http://core").pathname;
+      if (path === "/v1/me") {
+        const known = req.headers.authorization === "Bearer t0ken";
+        res.statusCode = known ? 200 : 401;
+        return res.end(JSON.stringify(known ? { user: { username: "max" } } : { error: "Sign in first." }));
+      }
       if (path === "/v1/search") {
         const { query, exclude } = JSON.parse(body);
         seen.searches.push({ query, exclude });
@@ -64,14 +69,14 @@ function fakeRetrieval() {
 type Seen = ReturnType<typeof fakeRetrieval>["seen"];
 
 // Runs fn against a live agent (mock model, no key) and a fake core.
-async function withAgent(fn: (post: (messages: unknown[]) => Promise<Turn>, seen: Seen) => Promise<void>) {
+async function withAgent(fn: (post: (messages: unknown[]) => Promise<Turn>, seen: Seen, url: string) => Promise<void>) {
   delete process.env.OPENROUTER_API_KEY;
   const core = fakeRetrieval();
   const agent = createServer(app);
   try {
     process.env.RETRIEVAL_URL = await listen(core.server);
     const url = await listen(agent);
-    await fn((messages) => post(url, messages), core.seen);
+    await fn((messages) => post(url, messages), core.seen, url);
   } finally {
     agent.close();
     core.server.close();
@@ -288,3 +293,27 @@ test("accounts: the session lives in an HttpOnly cookie, and the core gets it as
     core.server.close();
   }
 });
+
+// Last, since it uses up this address's share of turns for the rest of the run.
+test("chat turns are limited per address, more for someone signed in, and eval runs aren't counted", () =>
+  withAgent(async (post, _seen, url) => {
+    let turn = await post([user("What is suffering?")]);
+    for (let i = 0; i < 40 && turn.status !== 429; i++) turn = await post([user("What is suffering?")]);
+    assert.equal(turn.status, 429);
+    const ask = (headers: Record<string, string>, extra = {}) =>
+      fetch(`${url}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ messages: [user("What is suffering?")], ...extra }),
+      });
+    const refused = await ask({ Cookie: "buddha_session=forged" });
+    assert.equal(refused.status, 429);
+    assert.match(((await refused.json()) as { error: string }).error, /Sign in for more/);
+    assert.equal((await ask({ Cookie: "buddha_session=t0ken" })).status, 200); // a live session has room left
+    process.env.EVAL_MODE = "1";
+    try {
+      assert.equal((await ask({}, { eval: true })).status, 200);
+    } finally {
+      delete process.env.EVAL_MODE;
+    }
+  }));
