@@ -238,7 +238,13 @@ Railway gives each service a domain of its own under `up.railway.app`, a public 
 | agent | `services/agent/Dockerfile` | `RETRIEVAL_URL=http://core.railway.internal:7890`, `CORS_ORIGINS=https://buddha.maxlim.xyz,https://<railway domain>`, `TRUST_PROXY=2`, `CLIENT_IP_HEADER=x-real-ip`, `OPENROUTER_API_KEY` |
 | web | `apps/web/Dockerfile` | `AGENT_URL=http://agent.railway.internal:7891`, `NEXT_PUBLIC_API_URL=/agent` and `SITE_URL=https://buddha.maxlim.xyz`, read at build time; the custom domain and the Railway domain, both on port 5005 |
 
-Each service builds from the repo root with its own Dockerfile, chosen by `RAILWAY_DOCKERFILE_PATH`. `railway up --service <name>` deploys one from a checkout.
+Each service builds from the repo root with its own Dockerfile, chosen by `RAILWAY_DOCKERFILE_PATH`. `core`, `agent` and `web` deploy from `main` on GitHub, and each one watches only the paths its Dockerfile copies, so a merge deploys the services whose files changed and a docs-only merge deploys nothing:
+
+- `web` watches `apps/web/`, `packages/shared/` and the workspace's package files.
+- `agent` watches `services/agent/`, `packages/shared/`, `prompts/`, `policy.yaml` and the workspace's package files.
+- `core` watches `services/core/`.
+
+When a Dockerfile starts copying a new path, that path goes into the service's watch paths too. `railway up --service <name>` still deploys one from a checkout.
 
 ## 8. Data and RAG
 
