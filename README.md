@@ -31,7 +31,7 @@ At the beginning of October I attended a Vipassana meditation course at [Dhamma 
 </p>
 <p align="center"><sub>Dhamma Sirī, in October. Its sign carries the Dhamma wheel, the same wheel as this project's mark.</sub></p>
 
-It's the same pattern I'd built at my previous company, for legal AI and for chatbots over internal policy documents. So this was the project to relearn that whole stack end to end: a Go backend, the Vercel AI SDK, and a RAG pipeline put together into a working chatbot. Only the corpus changes, and this one is harder in good ways.
+At my last job I built [B3OS](https://b3os.org/), the onchain engine for agentic AI, on a Go backend with LangGraph and RAG. This time I wanted to build the same kind of system from scratch, with Go again but the Vercel AI SDK instead of LangGraph: a Go backend, a TypeScript agent and a RAG pipeline put together into a working chatbot. Only the corpus changes, and this one is harder in good ways.
 
 **The idea, in four steps:**
 
