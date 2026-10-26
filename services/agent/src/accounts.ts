@@ -20,14 +20,14 @@ accounts.use(["/api/auth", "/api/chats"], (req, res, next) => {
   res.status(403).json({ error: "Only the web app can do that." });
 });
 
+// Each address's counted tries. Behind a proxy, TRUST_PROXY makes req.ip the client's (app.ts).
 // ponytail: counted in this process's memory; a shared store if the agent runs as several instances
 const tries = new Map<string, number[]>();
-function tooMany(address: string) {
+const recent = (address: string, now = Date.now()) => (tries.get(address) ?? []).filter((t) => now - t < WINDOW_MS);
+function count(address: string) {
   const now = Date.now();
-  const recent = (tries.get(address) ?? []).filter((t) => now - t < WINDOW_MS);
-  tries.set(address, [...recent, now]);
+  tries.set(address, [...recent(address, now), now]);
   if (tries.size > 10_000) for (const [k, v] of tries) if (now - (v.at(-1) ?? 0) > WINDOW_MS) tries.delete(k);
-  return recent.length >= TRIES;
 }
 
 // Calls the core as whoever the cookie says is signed in, if anyone.
@@ -55,26 +55,27 @@ const route = (fn: (req: Request, res: Response) => Promise<void>) => async (req
   }
 };
 
-// Signs up or in through the core, then keeps the session in the cookie. Over HTTPS, directly or
-// behind a proxy, the cookie is Secure too.
-const enter = (path: string) =>
+// Signs up or in through the core, then keeps the session in the cookie, Secure over HTTPS. Every
+// sign-up counts against the address, so it can't make accounts in bulk; a sign-in counts when it fails.
+const enter = (path: string, countEvery: boolean) =>
   route(async (req, res) => {
-    if (tooMany(req.ip ?? "")) {
+    const address = req.ip ?? "";
+    if (recent(address).length >= TRIES) {
       res.status(429).json({ error: "Too many tries. Wait a few minutes." });
       return;
     }
     const answer = await ask(req, path, { method: "POST", body: JSON.stringify(req.body ?? {}) });
+    if (countEvery || !answer.ok) count(address);
     if (!answer.ok) return pass(res, answer);
     const { user, token, expires } = (await answer.json()) as { user: unknown; token: string; expires: number };
-    const secure = req.secure || req.get("x-forwarded-proto") === "https";
-    res.cookie(COOKIE, token, { httpOnly: true, sameSite: "lax", secure, path: "/api", expires: new Date(expires) });
+    res.cookie(COOKIE, token, { httpOnly: true, sameSite: "lax", secure: req.secure, path: "/api", expires: new Date(expires) });
     res.status(answer.status).json({ user });
   });
 
 const chat = (req: Request) => `/v1/chats/${encodeURIComponent(String(req.params.id))}`;
 
-accounts.post("/api/auth/signup", express.json(), enter("/v1/users"));
-accounts.post("/api/auth/login", express.json(), enter("/v1/sessions"));
+accounts.post("/api/auth/signup", express.json(), enter("/v1/users", true));
+accounts.post("/api/auth/login", express.json(), enter("/v1/sessions", false));
 accounts.post(
   "/api/auth/logout",
   route(async (req, res) => {

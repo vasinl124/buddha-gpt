@@ -10,6 +10,11 @@ const MAX_CHARS = 2000; // the longest message the web input allows
 
 export const app = express();
 
+// Behind a reverse proxy, TRUST_PROXY says which hops to believe for the client's address and
+// protocol: Express's "trust proxy", a hop count such as 1 or addresses such as loopback.
+const trust = process.env.TRUST_PROXY;
+if (trust) app.set("trust proxy", /^\d+$/.test(trust) ? Number(trust) : trust);
+
 // credentials: the account routes carry the session cookie
 app.use(cors({ origin: origins(), credentials: true }));
 app.use(accounts);

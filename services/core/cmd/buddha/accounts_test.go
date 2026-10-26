@@ -162,4 +162,11 @@ func TestAccountRoutes(t *testing.T) {
 	expect(do("GET", "/v1/chats/c1", token, ""), http.StatusNotFound, "a deleted conversation")
 	expect(do("DELETE", "/v1/sessions", token, ""), http.StatusNoContent, "sign out")
 	expect(do("GET", "/v1/me", token, ""), http.StatusUnauthorized, "a session after sign-out")
+
+	// after maxGuesses wrong passwords, the name waits, even for the right one
+	for range maxGuesses {
+		do("POST", "/v1/sessions", "", `{"username":"ana","password":"a wrong guess"}`)
+	}
+	expect(do("POST", "/v1/sessions", "", `{"username":"ana","password":"long enough"}`), http.StatusTooManyRequests, "a name guessed at too often")
+	expect(do("POST", "/v1/sessions", "", `{"username":"max","password":"long enough"}`), http.StatusOK, "another name meanwhile")
 }

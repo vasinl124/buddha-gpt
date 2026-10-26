@@ -225,10 +225,16 @@ test("healthz reports the core and its database", async () => {
 // A stand-in for the Go core's account routes that records the bearer token each call carried.
 function fakeAccounts() {
   const seen: string[] = [];
-  const server = createServer((req, res) => {
+  const server = createServer(async (req, res) => {
     seen.push(`${req.method} ${req.url} ${req.headers.authorization ?? "-"}`);
     res.setHeader("Content-Type", "application/json");
     if (req.method === "POST") {
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      if (JSON.parse(body || "{}").password === "wrong") {
+        res.statusCode = 401;
+        return res.end(JSON.stringify({ error: "That username and password don't match." }));
+      }
       res.statusCode = req.url === "/v1/users" ? 201 : 200;
       return res.end(JSON.stringify({ user: { username: "max" }, token: "t0ken", expires: Date.now() + 60_000 }));
     }
@@ -271,9 +277,11 @@ test("accounts: the session lives in an HttpOnly cookie, and the core gets it as
     assert.equal(core.seen.at(-1), "DELETE /v1/sessions Bearer t0ken");
     assert.match(out.headers.get("set-cookie") ?? "", /^buddha_session=;/);
 
-    // sign-in tries from one address are limited
+    // a sign-in that works doesn't count against the address; one that fails does, up to a limit
+    const login = (password: string) => fetch(`${url}/api/auth/login`, { method: "POST", headers: web, body: JSON.stringify({ username: "max", password }) });
+    for (let i = 0; i < 25; i++) assert.equal((await login("long enough")).status, 200);
     let status = 0;
-    for (let i = 0; i < 25 && status !== 429; i++) status = (await fetch(`${url}/api/auth/login`, { method: "POST", headers: web, body: "{}" })).status;
+    for (let i = 0; i < 25 && status !== 429; i++) status = (await login("wrong")).status;
     assert.equal(status, 429);
   } finally {
     agent.close();

@@ -42,6 +42,8 @@ const (
 	rounds      = 600_000 // PBKDF2-HMAC-SHA256 from the standard library, at OWASP's floor; argon2id would need x/crypto
 	sessionLife = 30 * 24 * time.Hour
 	maxChat     = 2 << 20 // one conversation's JSON, cards and all
+	maxGuesses  = 10      // wrong passwords for one username in guessWindow, from anywhere
+	guessWindow = 15 * time.Minute
 )
 
 var (
@@ -79,12 +81,57 @@ func checkPassword(hash, password string) bool {
 	return err == nil && subtle.ConstantTimeCompare(got, want) == 1
 }
 
+// guesses counts wrong passwords per username, so no one account can be guessed at quickly, from
+// however many addresses. The agent limits each address as well.
+// ponytail: in this process's memory; a table if the core runs as several instances
+type guesses struct {
+	mu sync.Mutex
+	at map[string][]time.Time
+}
+
+// recent returns name's wrong passwords inside the window; the caller holds mu.
+func (g *guesses) recent(name string) []time.Time {
+	var in []time.Time
+	for _, t := range g.at[name] {
+		if time.Since(t) < guessWindow {
+			in = append(in, t)
+		}
+	}
+	return in
+}
+
+func (g *guesses) blocked(name string) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return len(g.recent(name)) >= maxGuesses
+}
+
+func (g *guesses) wrong(name string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if len(g.at) > 10_000 { // forget the names whose window has passed
+		for k := range g.at {
+			if len(g.recent(k)) == 0 {
+				delete(g.at, k)
+			}
+		}
+	}
+	g.at[name] = append(g.recent(name), time.Now())
+}
+
+func (g *guesses) right(name string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	delete(g.at, name)
+}
+
 func tokenHash(token string) []byte {
 	sum := sha256.Sum256([]byte(token))
 	return sum[:]
 }
 
 func accountRoutes(mux *http.ServeMux, a accounts) {
+	tries := &guesses{at: map[string][]time.Time{}}
 	fail := func(w http.ResponseWriter, what string) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": what + " failed"})
 	}
@@ -163,6 +210,10 @@ func accountRoutes(mux *http.ServeMux, a accounts) {
 		if !ok {
 			return
 		}
+		if tries.blocked(c.Username) {
+			writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "Too many wrong passwords for this username. Wait a few minutes."})
+			return
+		}
 		id, hash, err := a.User(r.Context(), c.Username)
 		if err != nil && !errors.Is(err, store.ErrNotFound) {
 			fail(w, "sign-in")
@@ -172,9 +223,11 @@ func accountRoutes(mux *http.ServeMux, a accounts) {
 			hash = decoy()
 		}
 		if match := checkPassword(hash, c.Password); !match || err != nil {
+			tries.wrong(c.Username)
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "That username and password don't match."})
 			return
 		}
+		tries.right(c.Username)
 		signIn(w, r, http.StatusOK, id, c.Username)
 	})
 

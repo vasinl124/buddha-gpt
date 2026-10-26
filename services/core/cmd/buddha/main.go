@@ -24,8 +24,6 @@ import (
 	"github.com/vasinl124/buddha-gpt/services/core/internal/store"
 )
 
-const addr = ":7890"
-
 func main() {
 	loadEnvFile("../../.env") // the repo-root .env; the root scripts run this from services/core
 	if len(os.Args) < 2 {
@@ -68,6 +66,9 @@ func serve(ctx context.Context) error {
 	}
 	mux := routes(newLive(st, emb))
 	accountRoutes(mux, st)
+	// loopback only, since only the agent should reach the core: it limits sign-ins per address.
+	// CORE_ADDR=:7890 opens it to a private network, as when the two run on different hosts.
+	addr := env("CORE_ADDR", "127.0.0.1:7890")
 	log.Printf("Retrieval API listening on %s", addr)
 	return http.ListenAndServe(addr, mux)
 }
