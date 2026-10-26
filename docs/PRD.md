@@ -13,7 +13,7 @@ You talk with the Buddha in English, Thai or Pali. He answers the way he does in
 
 **One line:** *a conversation with the Buddha where every quote is real.*
 
-**Why it exists.** The Buddha passed away some 2,500 years ago, and what remains of his teaching is the Tipiṭaka. RAG makes a body of text something you can ask: the same pattern the author built at a previous company, for legal AI and for chatbots over internal policy documents. This project relearns that stack end to end (a Go backend, the Vercel AI SDK, a RAG pipeline) on a corpus that's harder in good ways: three languages, messy sources, and words that must never be invented. The idea came during a Vipassana course at Dhamma Sirī, the Southwest Vipassana Meditation Center in Kaufman, Texas, in October 2026.
+**Why it exists.** The Buddha passed away some 2,500 years ago, and what remains of his teaching is the Tipiṭaka. RAG makes a body of text something you can ask. The author built B3OS (b3os.org), an onchain engine for agentic AI, on a Go backend with LangGraph and RAG; this project builds the same kind of system from scratch with a Go backend and the Vercel AI SDK instead of LangGraph, on a corpus that's harder in good ways: three languages, messy sources, and words that must never be invented. The idea came during a Vipassana course at Dhamma Sirī, the Southwest Vipassana Meditation Center in Kaufman, Texas, in October 2026.
 
 ## 2. What it shows
 
