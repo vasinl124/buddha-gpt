@@ -66,8 +66,10 @@ func serve(ctx context.Context) error {
 	if !emb.Ready() {
 		log.Print("no OPENROUTER_API_KEY: search is lexical only")
 	}
+	mux := routes(newLive(st, emb))
+	accountRoutes(mux, st)
 	log.Printf("Retrieval API listening on %s", addr)
-	return http.ListenAndServe(addr, routes(newLive(st, emb)))
+	return http.ListenAndServe(addr, mux)
 }
 
 // backend is what the HTTP routes need: the store implements it, the tests fake it.
@@ -113,7 +115,7 @@ func (l live) Paragraphs(ctx context.Context, suttaID, lang, near string, limit 
 	return l.st.Paragraphs(ctx, suttaID, lang, near, limit)
 }
 
-func routes(b backend) http.Handler {
+func routes(b backend) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), time.Second)

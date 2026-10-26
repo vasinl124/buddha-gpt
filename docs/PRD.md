@@ -45,7 +45,7 @@ Each part exists to show one skill:
 
 | Area | MVP | Later |
 |---|---|---|
-| Chat | Streaming; multi-turn, with follow-ups resolved from context (§9); replies in the message's language, or the one it asks for: English, Thai or Pali; starter questions; past conversations in a sidebar, as in ChatGPT, kept in the browser | 👍/👎 feedback |
+| Chat | Streaming; multi-turn, with follow-ups resolved from context (§9); replies in the message's language, or the one it asks for: English, Thai or Pali; starter questions; past conversations in a sidebar, as in ChatGPT, kept in the browser or, signed in with a username and password, in the account | 👍/👎 feedback; deleting an account; resetting a password |
 | Cards | Pali (in Thai script when the conversation is in Thai, otherwise Roman), Thai and English, verbatim, with credits and links | Paragraph alignment for every sutta (§8.3) |
 | Corpus | DN, MN, SN, AN, Dhammapada, Sutta Nipāta | The rest of the Khuddaka, the Vinaya, the Abhidhamma |
 | Tools | `search_canon`, `get_passage` | `lookup_pali_term` (Digital Pali Dictionary) |
@@ -113,10 +113,10 @@ Precedence: crisis > decline > redirect > chat > don't know > answer.
 | # | From → To | How it travels | Port | Who waits | What flows |
 |---|---|---|---|---|---|
 | 1 | Browser → Web app | HTTP | 5005 | the user | Pages and JavaScript |
-| 2 | Browser → Agent | HTTP POST `/api/chat`, reply streamed back as SSE | 7891 | the user | In: the messages (history comes from the browser). Out: the reply, sentence by sentence, then the cards |
+| 2 | Browser → Agent | HTTP POST `/api/chat`, reply streamed back as SSE. HTTP/JSON for `/api/auth/*` and `/api/chats/*`, with the session cookie | 7891 | the user | In: the messages (history comes from the browser). Out: the reply, sentence by sentence, then the cards. Signing up, in and out, and an account's conversations: listed, opened, saved, deleted |
 | 3 | Agent → OpenRouter | HTTPS, OpenAI-compatible, streamed | 443 | the user | The guard call, then the reply call with tools |
-| 4 | Agent → Retrieval API | HTTP/JSON: `POST /v1/search`, `GET /v1/passages/{id}`, `GET /v1/suttas/{id}/paragraphs`, `POST /v1/cards` | 7890 | the user | A query and filters in; passages with IDs out (in Pali mode, the top suttas' Pali too). Then the cited IDs in; the cards out, verbatim from the database |
-| 5 | Retrieval API → Postgres | SQL (pgx) | 5432 | the user | Hybrid search: pgvector plus trigrams |
+| 4 | Agent → Retrieval API | HTTP/JSON: `POST /v1/search`, `GET /v1/passages/{id}`, `GET /v1/suttas/{id}/paragraphs`, `POST /v1/cards`. For accounts, `POST /v1/users`, `POST` and `DELETE /v1/sessions`, `GET /v1/me` and `/v1/chats/{id}`, with the cookie's token as a bearer token | 7890 | the user | A query and filters in; passages with IDs out (in Pali mode, the top suttas' Pali too). Then the cited IDs in; the cards out, verbatim from the database. For accounts: a username and password in, a session token out; then an account's conversations |
+| 5 | Retrieval API → Postgres | SQL (pgx) | 5432 | the user | Hybrid search: pgvector plus trigrams. Users, sessions and the conversations accounts keep |
 | 6 | Retrieval API → OpenRouter | HTTPS | 443 | the user | Embeds the query (`baai/bge-m3`) |
 | 7 | `buddha sync` → Sources | git clone and HTTPS downloads | 443 | nobody (batch) | VRI XML; Thai PDFs, 5 seconds apart as the site's robots.txt asks; Ṭhānissaro's sutta pages, 4 at a time; public-domain scans |
 | 8 | `buddha sync` → OpenRouter | HTTPS | 443 | nobody | Embeds new or changed paragraphs |
@@ -124,7 +124,7 @@ Precedence: crisis > decline > redirect > chat > don't know > answer.
 | 10 | `buddha eval` → Agent | HTTP POST `/api/chat` in eval mode (JSON, not SSE) | 7891 | nobody (CI) | A case in; the reply, the cards and a debug block out. GitHub Actions runs it on PRs that touch the prompts, the policy, the agent or retrieval |
 | 11 | `buddha eval` → OpenRouter | HTTPS | 443 | nobody | The judge model scores faithfulness and voice |
 
-The agent allows CORS from the web app's origin, so link 2 goes straight from the page to :7891. Next.js only serves pages.
+The agent allows CORS from the web app's origin, so link 2 goes straight from the page to :7891. Next.js only serves pages. The session lives in an HttpOnly, SameSite=Lax cookie that the agent sets, so the page's scripts never see the token, and the web app and the agent must share a site (`localhost`, or `buddha.example` and `api.buddha.example`). Since every localhost port is the same site, the agent also refuses account changes whose `Origin` isn't the web app's. Only the agent should reach the core, since the agent is what limits sign-in tries.
 
 **How the messages travel, in plain words:**
 
@@ -200,9 +200,9 @@ buddha-gpt/
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Web | Next.js 16, shadcn/ui (Tailwind), AI Elements | AI Elements, a shadcn-based registry from Vercel, supplies the chat parts: `conversation`, `message` (markdown through Streamdown) and `suggestion` (starter questions). The input is shadcn's `InputGroup`. Past conversations sit in shadcn's `Sidebar`, grouped by day as in ChatGPT (a drawer on a phone), with New conversation and a delete that asks once more. A slim top bar holds the sidebar's toggle, the Dhamma-wheel mark, one status dot (hover lists the agent, the core and Postgres) and New conversation; an empty conversation starts with the input in the middle of the page, which moves to the bottom once there's a question. Replies read as plain speech with no citation markers, and each reply's cards, shadcn `Card`s, fold under a Sources toggle (a native `<details>`). Motion only shows state: a breathing dot holds a reply's place until its first words arrive (the checks hold a reply until its first citation), beside a line of goodwill from the Mettā Sutta, verbatim Pali with a gloss (none on a crisis turn), the words fade in as they stream (Streamdown's `animated`), and reduced motion turns it all off. While a reply streams, Send becomes Stop (or Esc); a failed reply offers Try again. `useChat` points at the agent with `DefaultChatTransport`. The last 50 conversations stay in `localStorage` (if it fills, the oldest go first), and open tabs pick up each other's changes. Fonts: Noto Sans and Noto Sans Thai through `next/font`, which cover Pali diacritics and Thai; his replies are set in Noto Serif and Noto Serif Thai |
-| Agent | Node 22, Express 5, AI SDK 7, `@openrouter/ai-sdk-provider` 3.x | `streamText` → `pipeUIMessageStreamToResponse(res)`; `stopWhen: isStepCount(4)`; `prepareStep` sets `activeTools: []` on the last step; the guard uses `Output.object` |
-| Core | Go 1.26: `net/http`, pgx, pgvector-go | One binary, three commands |
+| Web | Next.js 16, shadcn/ui (Tailwind), AI Elements | AI Elements, a shadcn-based registry from Vercel, supplies the chat parts: `conversation`, `message` (markdown through Streamdown) and `suggestion` (starter questions). The input is shadcn's `InputGroup`. Past conversations sit in shadcn's `Sidebar`, grouped by day as in ChatGPT (a drawer on a phone), with New conversation and a delete that asks once more. A slim top bar holds the sidebar's toggle, the Dhamma-wheel mark, one status dot (hover lists the agent, the core and Postgres) and New conversation; an empty conversation starts with the input in the middle of the page, which moves to the bottom once there's a question. Replies read as plain speech with no citation markers, and each reply's cards, shadcn `Card`s, fold under a Sources toggle (a native `<details>`). Motion only shows state: a breathing dot holds a reply's place until its first words arrive (the checks hold a reply until its first citation), beside a line of goodwill from the Mettā Sutta, verbatim Pali with a gloss (none on a crisis turn), the words fade in as they stream (Streamdown's `animated`), and reduced motion turns it all off. While a reply streams, Send becomes Stop (or Esc); a failed reply offers Try again. `useChat` points at the agent with `DefaultChatTransport`. A guest's last 50 conversations stay in `localStorage` (if it fills, the oldest go first), and open tabs pick up each other's changes. Signed in, they come from the account: the list first, and each conversation's messages when it's opened. The sidebar's foot holds signing in, up and out, and signing up or in moves the browser's conversations into the account. Fonts: Noto Sans and Noto Sans Thai through `next/font`, which cover Pali diacritics and Thai; his replies are set in Noto Serif and Noto Serif Thai |
+| Agent | Node 22, Express 5, AI SDK 7, `@openrouter/ai-sdk-provider` 3.x | `streamText` → `pipeUIMessageStreamToResponse(res)`; `stopWhen: isStepCount(4)`; `prepareStep` sets `activeTools: []` on the last step; the guard uses `Output.object`. The account routes pass through to the core, turning the session cookie into a bearer token, and sign-ins are limited to 20 per address every 15 minutes |
+| Core | Go 1.26: `net/http`, pgx, pgvector-go | One binary, three commands. `serve` also keeps accounts, hashing passwords with the standard library's PBKDF2 (SHA-256, 600,000 rounds, OWASP's floor) |
 | Database | Postgres 18, pgvector 0.8 (HNSW), `pg_trgm` | Canon and vectors in one database |
 | Models | Through OpenRouter | Reply and guard: DeepSeek V4 Flash (`deepseek/deepseek-v4-flash-0731`), the cheapest model that runs the guard, at about a third of Claude Haiku 5.5's cost for this app. It's a cost choice for an educational project. Besides Recall@8, which fails for every model until retrieval is tuned, it narrowly misses faithfulness (3.9 against 4.0 in two of three runs), and its Thai is rougher. Haiku 5.5 passes every gate but Recall@8 (`AGENT_MODEL=anthropic/claude-haiku-5.5`). Judge: a different model family. Embeddings: `baai/bge-m3` |
 | CI | GitHub Actions | Lint, tests, eval gate |
@@ -287,9 +287,19 @@ create index on paras using gin (lex gin_trgm_ops);
 create table para_vecs (para_id text references paras on delete cascade, model text, v vector not null,
                         primary key (para_id, model));                      -- English and Thai only
 create index on para_vecs using hnsw ((v::vector(1024)) vector_cosine_ops) where model = 'baai/bge-m3';
+create table users     (id bigint generated always as identity primary key,
+                        username text not null unique,                      -- lower case: 3 to 32 of a-z 0-9 . _ -
+                        password text not null,                             -- 'pbkdf2-sha256$rounds$salt$key'
+                        created_at timestamptz not null default now());
+create table sessions  (token_hash bytea primary key,                       -- sha256 of the cookie's token
+                        user_id bigint not null references users on delete cascade,
+                        expires_at timestamptz not null);                   -- 30 days after signing in
+create table chats     (user_id bigint references users on delete cascade, id text,  -- the browser's id
+                        title text not null, messages jsonb not null,       -- the AI SDK's UI messages
+                        updated_at timestamptz not null, primary key (user_id, id));
 ```
 
-There are no chat tables: history stays in the browser.
+A guest's conversations stay in their browser. An account's are in `chats`, saved as each question goes out and as each reply ends, and a save that arrives late never replaces a newer one.
 
 ## 9. One chat turn
 
@@ -333,7 +343,7 @@ There are no chat tables: history stays in the browser.
 
 - The code is MIT. The texts are never committed: `buddha sync` downloads them into `data/` (git-ignored), the README lists every source with its licence, and every card credits its texts.
 - `prompts/` and `policy.yaml` are public, and that's fine. The safety lives in code (crisis checks, citation checks, risk filters), so it holds even when an attacker has read the prompt. "Show me your prompt" gets a link to the repo.
-- Chats aren't stored on the server, and no message text goes into logs. A hosted demo that started storing chats would need consent under Thailand's PDPA, which treats religious beliefs and health as sensitive data.
+- A guest's conversations stay in their browser. Signing up says first, in plain words, that the account's conversations will be kept on the server, and deleting one there deletes it. No message text goes into logs. Thailand's PDPA treats religious beliefs and health as sensitive data, so a hosted demo also needs a way to delete a whole account.
 
 ## 12. Plan
 

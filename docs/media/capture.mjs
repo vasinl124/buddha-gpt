@@ -8,6 +8,7 @@
 //   pnpm media shots            screenshots only
 //   pnpm media shots answer     only the named screenshots
 //   pnpm media demo             the demo only
+//   pnpm media account          the sign-in clip, as DEMO_USER with DEMO_PASSWORD (a fresh account)
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -39,10 +40,14 @@ const SCENES = [
   { caption: "Someone in crisis gets the right numbers", text: "I don't want to live anymore" },
 ];
 
+// the dev-mode badge, and the scroll-down button that floats over a long reply
+const HIDE = "nextjs-portal, [role=log] button.rounded-full.absolute { display: none !important; }";
+
 const browser = await chromium.launch({ channel: "chrome" });
 try {
-  if (only !== "demo") await screenshots();
-  if (only !== "shots") await demo();
+  if (!only || only === "shots") await screenshots();
+  if (!only || only === "demo") await demo();
+  if (!only || only === "account") await account();
 } finally {
   await browser.close();
 }
@@ -112,6 +117,44 @@ async function history() {
   rmSync(dir, { recursive: true });
   console.log(`wrote docs/media/history.gif (${(statSync(join(OUT, "history.gif")).size / 1e6).toFixed(1)} MB)`);
   await context.close();
+}
+
+// Signing in, as an account the caller names, so no password lives in the repo: this browser's two
+// conversations move into the account, and they're still there after a reload. Use a fresh account,
+// since whatever it already keeps shows in the clip.
+async function account() {
+  const { DEMO_USER: user, DEMO_PASSWORD: password } = process.env;
+  if (!user || !password) return console.log("skipped docs/media/account.gif: set DEMO_USER and DEMO_PASSWORD");
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
+  const page = await open(context);
+  for (const [i, text] of HISTORY.slice(1).entries()) {
+    if (i) await page.getByRole("button", { name: "New conversation" }).first().click();
+    await ask(page, text);
+  }
+  await page.mouse.move(0, 0);
+  const dir = mkdtempSync(join(tmpdir(), "buddha-account-"));
+  const frames = await record(page, dir, { maxWidth: 1280, maxHeight: 800 });
+  await page.waitForTimeout(2000);
+  await page.getByRole("button", { name: "Sign in to keep them anywhere" }).click();
+  await page.getByLabel("Username").pressSequentially(user, { delay: 70 });
+  await page.getByLabel("Password").pressSequentially(password, { delay: 40 });
+  await page.waitForTimeout(500);
+  await page.keyboard.press("Enter");
+  await page.getByText("Kept in your account").waitFor();
+  await page.waitForTimeout(2500);
+  await page.reload();
+  await page.addStyleTag({ content: HIDE });
+  await page.getByText("Kept in your account").waitFor();
+  await page.waitForTimeout(2500);
+  const list = await frames.stop();
+  await context.close();
+  ffmpeg([
+    "-f", "concat", "-safe", "0", "-i", list, "-vf",
+    "fps=8,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=5",
+    join(OUT, "account.gif"),
+  ]);
+  rmSync(dir, { recursive: true });
+  console.log(`wrote docs/media/account.gif (${(statSync(join(OUT, "account.gif")).size / 1e6).toFixed(1)} MB)`);
 }
 
 async function demo() {
@@ -190,8 +233,7 @@ async function open(context) {
   await page.goto(APP);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
-  // the dev-mode badge, and the scroll-down button that floats over a long reply
-  await page.addStyleTag({ content: "nextjs-portal, [role=log] button.rounded-full.absolute { display: none !important; }" });
+  await page.addStyleTag({ content: HIDE });
   await page.getByRole("textbox", { name: "Your message" }).waitFor();
   return page;
 }

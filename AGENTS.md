@@ -4,7 +4,7 @@ Talk with the Buddha in English, Thai or Pali: a grounded RAG agent where every 
 
 ## Architecture
 
-- **The web app is a thin client.** The agent owns the chat turn (guard, retrieval, the model call, the checks), and the Go core owns the data (canon, vectors, search). Never put business logic in Next.js.
+- **The web app is a thin client.** The agent owns the chat turn (guard, retrieval, the model call, the checks), and the Go core owns the data (canon, vectors, search, and accounts with their conversations). Never put business logic in Next.js.
 - **The model chooses, code quotes.** The model picks passage IDs; code fills every card and quote from the database. Model output never becomes scripture text.
 
 ```text

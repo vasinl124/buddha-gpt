@@ -1,5 +1,5 @@
-// Past conversations, kept in this browser only (PRD §11): newest first, grouped by day as in
-// ChatGPT's sidebar.
+// Past conversations, newest first and grouped by day as in ChatGPT's sidebar. A guest's are kept in
+// this browser (PRD §11); an account's in the core, through lib/account.
 import type { ChatData } from "@buddha-gpt/shared";
 import { generateId, type UIMessage } from "ai";
 
@@ -9,7 +9,7 @@ export interface SavedChat {
   id: string;
   title: string; // the first question
   updated: number; // ms since the epoch
-  messages: BuddhaMessage[];
+  messages?: BuddhaMessage[]; // an account's arrive when the conversation is opened
 }
 
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;

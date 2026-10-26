@@ -14,11 +14,11 @@ Talk with the Buddha in English, Thai or Pali. He answers in plain speech, and S
 | **Lottery numbers get a kind no, with a teaching** | **A crisis message gets the right numbers at once** |
 | ![A Thai lottery request gets a kind no, its source folded below](docs/media/decline.png) | ![A crisis message answered with Thailand's hotline numbers](docs/media/crisis.png) |
 
-**Past conversations stay in a sidebar (a drawer on a phone), kept in this browser only**
+**Past conversations stay in a sidebar (a drawer on a phone), kept in this browser, or in your account once you sign in**
 
 ![Three conversations in the sidebar, grouped under Today, with the newest open](docs/media/history.png)
 
-[See the sidebar at work](docs/media/history.gif): opening conversations, starting a new one and deleting one.
+[See the sidebar at work](docs/media/history.gif): opening conversations, starting a new one and deleting one. [See signing in](docs/media/account.gif): this browser's conversations move into the account and stay after a reload.
 
 These replies come from DeepSeek V4 Flash, the default model. Real replies need an `OPENROUTER_API_KEY`; without one, a mock model shows the whole flow. `pnpm media` re-captures these pictures and the demo from the running app.
 
@@ -35,7 +35,7 @@ docker compose up -d db
 pnpm dev
 ```
 
-Open <http://localhost:5005>. The dot in the top bar shows whether the agent, the Go core and Postgres are up; hover it to see each. If something else already uses port 5432, set `POSTGRES_PORT` in `.env` and change the port in `DATABASE_URL` to match.
+Open <http://localhost:5005>. The dot in the top bar shows whether the agent, the Go core and Postgres are up; hover it to see each. Your conversations stay in the browser until you sign in at the foot of the sidebar, with a username and password; then they're kept in Postgres, under your account. If something else already uses port 5432, set `POSTGRES_PORT` in `.env` and change the port in `DATABASE_URL` to match.
 
 | Service | Health check |
 |---|---|

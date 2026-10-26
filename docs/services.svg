@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1041 924" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1023 975" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
 <title>buddha-gpt: services and how they talk</title>
 <desc>Every runtime component of buddha-gpt and every link between them, numbered 1 to 11 to match the link table in PRD section 7.1. Solid arrows are calls a user is waiting on; dashed arrows are batch jobs (ingest and evals) that nobody waits on.</desc>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#374151"/></marker></defs>
-<rect width="1041" height="924" fill="#FFFFFF"/>
+<rect width="1023" height="975" fill="#FFFFFF"/>
 <text x="40" y="42" font-size="22" font-weight="700" fill="#111827">buddha-gpt · services and how they talk</text>
 <line x1="40" y1="70" x2="80" y2="70" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
 <text x="90" y="74" font-size="12.5" fill="#374151">a user is waiting</text>
@@ -16,73 +16,77 @@
 <text x="232" y="98" font-size="12.5" fill="#374151">database</text>
 <rect x="312" y="87" width="14" height="14" rx="3" fill="#F3F4F6" stroke="#9CA3AF"/>
 <text x="332" y="98" font-size="12.5" fill="#374151">external</text>
-<rect x="620" y="155" width="118" height="53" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
-<text x="679" y="178" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Browser</text>
-<text x="679" y="195" text-anchor="middle" font-size="12" fill="#4B5563">chat UI</text>
-<rect x="494" y="354" width="154" height="70" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
-<text x="571" y="377" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Web app</text>
-<text x="571" y="394" text-anchor="middle" font-size="12" fill="#4B5563">Next.js 16 · :5005</text>
-<text x="571" y="411" text-anchor="middle" font-size="12" fill="#4B5563">serves pages only</text>
-<rect x="676" y="354" width="223" height="70" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
-<text x="787.5" y="377" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Agent</text>
-<text x="787.5" y="394" text-anchor="middle" font-size="12" fill="#4B5563">Express 5 + AI SDK 7 · :7891</text>
-<text x="787.5" y="411" text-anchor="middle" font-size="12" fill="#4B5563">guard · tool loop · checks</text>
-<rect x="766" y="138" width="223" height="70" rx="10" fill="#E3F5F2" stroke="#1B8A7A" stroke-width="1.5"/>
-<text x="877.5" y="161" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">buddha eval</text>
-<text x="877.5" y="178" text-anchor="middle" font-size="12" fill="#4B5563">Go CLI · golden set + judge</text>
-<text x="877.5" y="195" text-anchor="middle" font-size="12" fill="#4B5563">run by GitHub Actions on PRs</text>
-<rect x="428" y="570" width="251" height="70" rx="10" fill="#E3F5F2" stroke="#1B8A7A" stroke-width="1.5"/>
-<text x="553.5" y="593" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Retrieval API</text>
-<text x="553.5" y="610" text-anchor="middle" font-size="12" fill="#4B5563">Go · buddha serve · :7890</text>
-<text x="553.5" y="627" text-anchor="middle" font-size="12" fill="#4B5563">hybrid search · passages · cards</text>
-<rect x="204" y="570" width="196" height="70" rx="10" fill="#E3F5F2" stroke="#1B8A7A" stroke-width="1.5"/>
-<text x="302" y="593" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">buddha sync</text>
-<text x="302" y="610" text-anchor="middle" font-size="12" fill="#4B5563">Go CLI · batch</text>
-<text x="302" y="627" text-anchor="middle" font-size="12" fill="#4B5563">download · clean · embed</text>
-<rect x="373" y="786" width="209" height="70" rx="10" fill="#F0EBFA" stroke="#6B4FBB" stroke-width="1.5"/>
-<text x="477.5" y="809" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Postgres 18</text>
-<text x="477.5" y="826" text-anchor="middle" font-size="12" fill="#4B5563">pgvector + pg_trgm · :5432</text>
-<text x="477.5" y="843" text-anchor="middle" font-size="12" fill="#4B5563">suttas · paras · vectors</text>
-<rect x="672" y="786" width="258" height="70" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
-<text x="801" y="809" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">OpenRouter</text>
-<text x="801" y="826" text-anchor="middle" font-size="12" fill="#4B5563">HTTPS · :443</text>
-<text x="801" y="843" text-anchor="middle" font-size="12" fill="#4B5563">chat · guard · embeddings · judge</text>
-<rect x="52" y="786" width="293" height="70" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
-<text x="198.5" y="809" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Sources</text>
-<text x="198.5" y="826" text-anchor="middle" font-size="12" fill="#4B5563">VRI Pali XML · Thai Royal PDFs</text>
-<text x="198.5" y="843" text-anchor="middle" font-size="12" fill="#4B5563">Ṭhānissaro pages · public-domain scans</text>
-<polyline points="659,208 659,224 571,224 571,354" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
-<polyline points="699,208 699,306 750,306 750,354" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
-<polyline points="825,424 825,440 827,440 827,786" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
-<polyline points="750,424 750,440 554,440 554,570" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
-<polyline points="512,640 512,786" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
-<polyline points="595,640 595,656 775,656 775,786" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
-<polyline points="253,640 253,656 199,656 199,786" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
-<polyline points="351,640 351,656 388,656 388,738 724,738 724,786" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
-<polyline points="302,640 302,748 443,748 443,786" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
-<polyline points="840,208 840,224 825,224 825,354" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
-<polyline points="915,208 915,738 878,738 878,786" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
-<rect x="507" y="272" width="61" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="537.5" y="285" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">1</tspan> pages</text>
-<rect x="600" y="272" width="96" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="648" y="285" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">2</tspan> POST → SSE</text>
-<rect x="707" y="596" width="117" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="765.5" y="609" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">3</tspan> guard + reply</text>
-<rect x="462" y="488" width="89" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="506.5" y="501" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">4</tspan> HTTP/JSON</text>
-<rect x="399" y="704" width="110" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="454" y="717" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">5</tspan> SQL · search</text>
-<rect x="669" y="704" width="103" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="720.5" y="717" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">6</tspan> embed query</text>
-<rect x="114" y="704" width="82" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="155" y="717" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">7</tspan> download</text>
-<rect x="324" y="704" width="61" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="354.5" y="717" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">8</tspan> embed</text>
-<rect x="231" y="704" width="68" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="265" y="717" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">9</tspan> upsert</text>
-<rect x="726" y="272" width="96" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="774" y="285" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">10</tspan> eval mode</text>
-<rect x="844" y="488" width="68" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
-<text x="878" y="501" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">11</tspan> judge</text>
-<text x="40" y="902" font-size="12.5" fill="#4B5563">Numbers match the link table in PRD §7.1.</text>
+<rect x="435" y="138" width="230" height="70" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
+<text x="550" y="161" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Browser</text>
+<text x="550" y="178" text-anchor="middle" font-size="12" fill="#4B5563">chat UI · sign in</text>
+<text x="550" y="195" text-anchor="middle" font-size="12" fill="#4B5563">guest history in localStorage</text>
+<rect x="435" y="354" width="154" height="70" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
+<text x="512" y="377" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Web app</text>
+<text x="512" y="394" text-anchor="middle" font-size="12" fill="#4B5563">Next.js 16 · :5005</text>
+<text x="512" y="411" text-anchor="middle" font-size="12" fill="#4B5563">serves pages only</text>
+<rect x="638" y="354" width="223" height="87" rx="10" fill="#E8F0FE" stroke="#3B6FD4" stroke-width="1.5"/>
+<text x="749.5" y="377" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Agent</text>
+<text x="749.5" y="394" text-anchor="middle" font-size="12" fill="#4B5563">Express 5 + AI SDK 7 · :7891</text>
+<text x="749.5" y="411" text-anchor="middle" font-size="12" fill="#4B5563">guard · tool loop · checks</text>
+<text x="749.5" y="428" text-anchor="middle" font-size="12" fill="#4B5563">session cookie → core token</text>
+<rect x="748" y="138" width="223" height="70" rx="10" fill="#E3F5F2" stroke="#1B8A7A" stroke-width="1.5"/>
+<text x="859.5" y="161" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">buddha eval</text>
+<text x="859.5" y="178" text-anchor="middle" font-size="12" fill="#4B5563">Go CLI · golden set + judge</text>
+<text x="859.5" y="195" text-anchor="middle" font-size="12" fill="#4B5563">run by GitHub Actions on PRs</text>
+<rect x="410" y="587" width="251" height="87" rx="10" fill="#E3F5F2" stroke="#1B8A7A" stroke-width="1.5"/>
+<text x="535.5" y="610" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Retrieval API</text>
+<text x="535.5" y="627" text-anchor="middle" font-size="12" fill="#4B5563">Go · buddha serve · :7890</text>
+<text x="535.5" y="644" text-anchor="middle" font-size="12" fill="#4B5563">hybrid search · passages · cards</text>
+<text x="535.5" y="661" text-anchor="middle" font-size="12" fill="#4B5563">accounts · saved chats</text>
+<rect x="183" y="604" width="196" height="70" rx="10" fill="#E3F5F2" stroke="#1B8A7A" stroke-width="1.5"/>
+<text x="281" y="627" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">buddha sync</text>
+<text x="281" y="644" text-anchor="middle" font-size="12" fill="#4B5563">Go CLI · batch</text>
+<text x="281" y="661" text-anchor="middle" font-size="12" fill="#4B5563">download · clean · embed</text>
+<rect x="417" y="820" width="209" height="87" rx="10" fill="#F0EBFA" stroke="#6B4FBB" stroke-width="1.5"/>
+<text x="521.5" y="843" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Postgres 18</text>
+<text x="521.5" y="860" text-anchor="middle" font-size="12" fill="#4B5563">pgvector + pg_trgm · :5432</text>
+<text x="521.5" y="877" text-anchor="middle" font-size="12" fill="#4B5563">suttas · paras · vectors</text>
+<text x="521.5" y="894" text-anchor="middle" font-size="12" fill="#4B5563">users · sessions · chats</text>
+<rect x="654" y="820" width="258" height="70" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+<text x="783" y="843" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">OpenRouter</text>
+<text x="783" y="860" text-anchor="middle" font-size="12" fill="#4B5563">HTTPS · :443</text>
+<text x="783" y="877" text-anchor="middle" font-size="12" fill="#4B5563">chat · guard · embeddings · judge</text>
+<rect x="52" y="820" width="293" height="70" rx="10" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+<text x="198.5" y="843" text-anchor="middle" font-size="15" font-weight="700" fill="#111827">Sources</text>
+<text x="198.5" y="860" text-anchor="middle" font-size="12" fill="#4B5563">VRI Pali XML · Thai Royal PDFs</text>
+<text x="198.5" y="877" text-anchor="middle" font-size="12" fill="#4B5563">Ṭhānissaro pages · public-domain scans</text>
+<polyline points="512,208 512,354" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="588,208 588,224 712,224 712,354" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="787,441 787,457 809,457 809,820" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="712,441 712,457 536,457 536,587" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="494,674 494,690 556,690 556,820" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="577,674 577,690 757,690 757,820" fill="none" stroke="#374151" stroke-width="1.8" marker-end="url(#arrow)"/>
+<polyline points="232,674 232,690 199,690 199,820" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<polyline points="330,674 330,690 356,690 356,772 706,772 706,820" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<polyline points="281,674 281,782 487,782 487,820" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<polyline points="822,208 822,306 787,306 787,354" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<polyline points="897,208 897,772 860,772 860,820" fill="none" stroke="#374151" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<rect x="448" y="272" width="61" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="478.5" y="285" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">1</tspan> pages</text>
+<rect x="523" y="272" width="186" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="616" y="285" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">2</tspan> chat SSE · account JSON</text>
+<rect x="689" y="621.5" width="117" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="747.5" y="634.5" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">3</tspan> guard + reply</text>
+<rect x="444" y="505" width="89" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="488.5" y="518" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">4</tspan> HTTP/JSON</text>
+<rect x="367" y="738" width="186" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="460" y="751" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">5</tspan> SQL · search · accounts</text>
+<rect x="651" y="738" width="103" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="702.5" y="751" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">6</tspan> embed query</text>
+<rect x="114" y="738" width="82" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="155" y="751" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">7</tspan> download</text>
+<rect x="292" y="738" width="61" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="322.5" y="751" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">8</tspan> embed</text>
+<rect x="210" y="738" width="68" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="244" y="751" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">9</tspan> upsert</text>
+<rect x="723" y="272" width="96" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="771" y="285" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">10</tspan> eval mode</text>
+<rect x="826" y="505" width="68" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.92"/>
+<text x="860" y="518" text-anchor="middle" font-size="12" fill="#1F2937"><tspan font-weight="700">11</tspan> judge</text>
+<text x="40" y="953" font-size="12.5" fill="#4B5563">Numbers match the link table in PRD §7.1.</text>
 </svg>

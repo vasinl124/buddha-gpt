@@ -221,3 +221,62 @@ test("healthz reports the core and its database", async () => {
     slowDbCore.close();
   }
 });
+
+// A stand-in for the Go core's account routes that records the bearer token each call carried.
+function fakeAccounts() {
+  const seen: string[] = [];
+  const server = createServer((req, res) => {
+    seen.push(`${req.method} ${req.url} ${req.headers.authorization ?? "-"}`);
+    res.setHeader("Content-Type", "application/json");
+    if (req.method === "POST") {
+      res.statusCode = req.url === "/v1/users" ? 201 : 200;
+      return res.end(JSON.stringify({ user: { username: "max" }, token: "t0ken", expires: Date.now() + 60_000 }));
+    }
+    if (req.method === "DELETE") {
+      res.statusCode = 204;
+      return res.end();
+    }
+    res.end(JSON.stringify({ chats: [] }));
+  });
+  return { server, seen };
+}
+
+test("accounts: the session lives in an HttpOnly cookie, and the core gets it as a bearer token", async () => {
+  process.env.CORS_ORIGINS = "http://localhost:5005";
+  const core = fakeAccounts();
+  const agent = createServer(app);
+  try {
+    process.env.RETRIEVAL_URL = await listen(core.server);
+    const url = await listen(agent);
+    const web = { "Content-Type": "application/json", Origin: "http://localhost:5005" };
+    const signUp = await fetch(`${url}/api/auth/signup`, { method: "POST", headers: web, body: JSON.stringify({ username: "max", password: "long enough" }) });
+    assert.equal(signUp.status, 201);
+    assert.deepEqual(await signUp.json(), { user: { username: "max" } }); // the token never reaches the page
+    const cookie = signUp.headers.get("set-cookie") ?? "";
+    assert.match(cookie, /^buddha_session=t0ken;/);
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /SameSite=Lax/);
+
+    assert.equal((await fetch(`${url}/api/chats`, { headers: { Cookie: "buddha_session=t0ken" } })).status, 200);
+    assert.equal(core.seen.at(-1), "GET /v1/chats Bearer t0ken");
+
+    // a change from another origin, even another localhost port, never reaches the core
+    const calls = core.seen.length;
+    const forged = await fetch(`${url}/api/chats/c1`, { method: "DELETE", headers: { Cookie: "buddha_session=t0ken", Origin: "http://localhost:6666" } });
+    assert.equal(forged.status, 403);
+    assert.equal(core.seen.length, calls);
+
+    const out = await fetch(`${url}/api/auth/logout`, { method: "POST", headers: { ...web, Cookie: "buddha_session=t0ken" } });
+    assert.equal(out.status, 204);
+    assert.equal(core.seen.at(-1), "DELETE /v1/sessions Bearer t0ken");
+    assert.match(out.headers.get("set-cookie") ?? "", /^buddha_session=;/);
+
+    // sign-in tries from one address are limited
+    let status = 0;
+    for (let i = 0; i < 25 && status !== 429; i++) status = (await fetch(`${url}/api/auth/login`, { method: "POST", headers: web, body: "{}" })).status;
+    assert.equal(status, 429);
+  } finally {
+    agent.close();
+    core.server.close();
+  }
+});

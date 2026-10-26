@@ -23,13 +23,13 @@ function box(id, kind, title, lines = []) {
 }
 
 const nodes = [
-  box('browser', 'ts', 'Browser', ['chat UI']),
+  box('browser', 'ts', 'Browser', ['chat UI · sign in', 'guest history in localStorage']),
   box('web', 'ts', 'Web app', ['Next.js 16 · :5005', 'serves pages only']),
-  box('agent', 'ts', 'Agent', ['Express 5 + AI SDK 7 · :7891', 'guard · tool loop · checks']),
+  box('agent', 'ts', 'Agent', ['Express 5 + AI SDK 7 · :7891', 'guard · tool loop · checks', 'session cookie → core token']),
   box('eval', 'go', 'buddha eval', ['Go CLI · golden set + judge', 'run by GitHub Actions on PRs']),
-  box('retrieval', 'go', 'Retrieval API', ['Go · buddha serve · :7890', 'hybrid search · passages · cards']),
+  box('retrieval', 'go', 'Retrieval API', ['Go · buddha serve · :7890', 'hybrid search · passages · cards', 'accounts · saved chats']),
   box('sync', 'go', 'buddha sync', ['Go CLI · batch', 'download · clean · embed']),
-  box('pg', 'db', 'Postgres 18', ['pgvector + pg_trgm · :5432', 'suttas · paras · vectors']),
+  box('pg', 'db', 'Postgres 18', ['pgvector + pg_trgm · :5432', 'suttas · paras · vectors', 'users · sessions · chats']),
   box('openrouter', 'ext', 'OpenRouter', ['HTTPS · :443', 'chat · guard · embeddings · judge']),
   box('sources', 'ext', 'Sources', ['VRI Pali XML · Thai Royal PDFs', 'Ṭhānissaro pages · public-domain scans']),
 ]
@@ -42,10 +42,10 @@ const E = (n, from, to, text, style = 'solid') => ({
 
 const edges = [
   E(1, 'browser', 'web', '1 pages'),
-  E(2, 'browser', 'agent', '2 POST → SSE'),
+  E(2, 'browser', 'agent', '2 chat SSE · account JSON'),
   E(3, 'agent', 'openrouter', '3 guard + reply'),
   E(4, 'agent', 'retrieval', '4 HTTP/JSON'),
-  E(5, 'retrieval', 'pg', '5 SQL · search'),
+  E(5, 'retrieval', 'pg', '5 SQL · search · accounts'),
   E(6, 'retrieval', 'openrouter', '6 embed query'),
   E(7, 'sync', 'sources', '7 download', 'dashed'),
   E(8, 'sync', 'openrouter', '8 embed', 'dashed'),
