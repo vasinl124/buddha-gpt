@@ -16,7 +16,7 @@ export interface Policy {
   decline: Record<string, string | null>; // topic → the paragraph a kind no points to, or null
   risk: { suttas: string[]; names: string[] };
   dont_know: { min_cosine: number };
-  quotes: { same_words: number; similar_cosine: number };
+  quotes: { same_words: number; similar_cosine: number; similar_words: number; candidates: number };
 }
 
 export const policy: Policy = parse(readFileSync(new URL("../../../policy.yaml", import.meta.url), "utf8"));

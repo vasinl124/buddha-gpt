@@ -14,7 +14,7 @@ buddha-gpt/
 ├── services/core/       Go module, skipped by pnpm: one `buddha` binary
 │                        (serve = Retrieval API :7890, sync, eval)
 ├── packages/shared/     @buddha-gpt/shared · TS types used by both web and agent
-├── prompts/             buddha.md (the reply) and guard.md (the router), read by the agent at startup
+├── prompts/             buddha.md (the reply), guard.md (the router) and quote.md (the quote check), read by the agent at startup
 ├── policy.yaml          crisis words and hotlines, decline topics, risk lists, thresholds
 ├── docs/                PRD.md, diagrams (docs/archive/ is private and git-ignored)
 └── docker-compose.yml   Postgres 18 + pgvector                                        :5432

@@ -47,17 +47,30 @@ export async function guard(messages: ModelMessage[], latest: string): Promise<G
       providerOptions: { openrouter: { reasoning: { enabled: false } } },
       abortSignal: AbortSignal.timeout(15_000),
     });
-    return output;
+    return answerQuotes(output);
   } catch (err) {
     console.error("guard:", err);
-    return { route: "answer", decline_topic: null, search_query: latest, quote: "", reply_lang: null };
+    // still check words plainly attributed to him, so a failed guard can't skip the quote check
+    return { route: "answer", decline_topic: null, search_query: latest, quote: attributed(latest), reply_lang: null };
   }
+}
+
+/** "Did the Buddha say …?" asks about the teachings, so it's never declined as role-play: the prompt says
+ * so, and the model still declines it now and then. A real decline topic (lottery, medical…) stands. */
+export function answerQuotes(g: Guard): Guard {
+  const roleplay = g.decline_topic === "roleplay" || g.decline_topic === null;
+  return g.route === "decline" && g.quote && roleplay ? { ...g, route: "answer", decline_topic: null } : g;
+}
+
+/** Words the message plainly puts in the Buddha's mouth ("Did the Buddha say "…"?"), or "". */
+export function attributed(latest: string): string {
+  return latest.match(/(?:buddha (?:really )?(?:say|said)|ตรัสว่า)[,:]?\s*["“']([^"”']+)["”']/i)?.[1] ?? "";
 }
 
 // No key: a keyword stand-in, so the routes can be tried, and tested, before a key exists.
 function mockGuard(latest: string): Guard {
   const t = fold(latest);
-  const quote = latest.match(/(?:buddha (?:really )?(?:say|said)|ตรัสว่า)[,:]?\s*["“']([^"”']+)["”']/i)?.[1] ?? "";
+  const quote = attributed(latest);
   const asked = t.match(/\bin (english|thai|pali)\b|ภาษา(อังกฤษ|ไทย|บาลี)/)?.[0] ?? "";
   const reply_lang = !asked ? null : /english|อังกฤษ/.test(asked) ? "en" : /thai|ไทย/.test(asked) ? "th" : "pi";
   const guess = (route: Route, decline_topic: string | null = null): Guard => ({ route, decline_topic, search_query: latest, quote, reply_lang });

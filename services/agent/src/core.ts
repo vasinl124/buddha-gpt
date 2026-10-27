@@ -16,6 +16,20 @@ export interface Result {
   top_lexical: number; // trigram word similarity; 0 when nothing matched the words
 }
 
+/** A line a quote lookup scored: its paragraph, the line, and how close it is by words and by meaning. */
+export interface QuoteLine extends Passage {
+  line: string;
+  words: number; // trigram word similarity: how much of the quote's words the line holds
+  cosine: number; // 0 when the lookup is by words only
+}
+
+/** A quote lookup: the lines closest in meaning, best first and one per paragraph, and the line that
+ * holds the most of the quote's words. */
+export interface QuoteResult {
+  lines: QuoteLine[];
+  words: QuoteLine | null;
+}
+
 const base = () => process.env.RETRIEVAL_URL || "http://localhost:7890";
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -31,6 +45,11 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 /** exclude lists sutta IDs to leave out: the risk filter (PRD §6). */
 export async function search(query: string, k = 8, exclude: string[] = []): Promise<Result> {
   return call<Result>("/v1/search", { method: "POST", body: JSON.stringify({ query, k, exclude }) });
+}
+
+/** Words someone attributes to the Buddha, looked up line by line (PRD §6). */
+export async function quote(text: string, exclude: string[] = []): Promise<QuoteResult> {
+  return call<QuoteResult>("/v1/quote", { method: "POST", body: JSON.stringify({ quote: text, exclude }) });
 }
 
 export async function passage(id: string, window = 1): Promise<Passage[]> {
