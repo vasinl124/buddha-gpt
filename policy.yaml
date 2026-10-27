@@ -84,9 +84,14 @@ risk:
 dont_know:
   min_cosine: 0.45
 
-# Words the user attributes to the Buddha are looked up: trigram word similarity at or above
-# same_words means the words are there; any lexical match, or a cosine at or above similar_cosine,
-# is "Not in those words, but I taught something close"; anything else, "I don't recall saying those words".
+# Words the user attributes to the Buddha are looked up line by line. A line holding them, at trigram word
+# similarity of same_words or more, is "Yes, those words are among my teachings". Otherwise the lines
+# closest in meaning (cosine of similar_cosine or more, or word similarity of similar_words or more; the
+# best `candidates` of them) go to a second check, where a small model (prompts/quote.md) says which, if
+# any, makes the same point. That one is "Not in those words, but I taught something close"; none is "I
+# don't recall saying those words". The check can only say no to "close", never yes to "those words".
 quotes:
   same_words: 0.85
   similar_cosine: 0.6
+  similar_words: 0.5
+  candidates: 3

@@ -103,7 +103,7 @@ Precedence: crisis > decline > redirect > chat > don't know > answer.
 - **Who decides.** Crisis keywords in code *or* the guard classifier, a small structured-output call: either one wins. The guard picks the other routes, and a retrieval score below the threshold turns an answer into don't know.
 - **A life situation beats a topic match.** He answers the grief and declines only the prediction inside it: "I won't say where your mother was reborn, but…"
 - **The Vakkali problem.** Naive RAG would show a user in crisis the suttas about monks who ended their lives (Vakkali SN 22.87, Channa SN 35.87, Godhika SN 4.23, SN 54.9). Once a conversation shows risk, Go filters those passages out of search and the reply check blocks their names.
-- **Fake quotes.** When the user attributes words to the Buddha, code looks them up. The same words get "Yes, those words are among my teachings" and a close match "Not in those words, but I taught something close", each with its card; no match gets "I don't recall saying those words".
+- **Fake quotes.** When the user attributes words to the Buddha, code looks them up line by line (`POST /v1/quote`): a paragraph is the wrong unit, since a long verse holds one matching line among dozens. A line with the same words gets "Yes, those words are among my teachings". Otherwise the lines closest in meaning go to a second check, where a small model (`prompts/quote.md`) says which, if any, makes the same point: that one gets "Not in those words, but I taught something close", and none gets "I don't recall saying those words". Each verdict that rests on a line shows its card. Sharing a subject isn't the same point, and the check can only turn "close" into "I don't recall", never into "those words".
 - **Commentary isn't canon.** Later stories, such as Kisā Gotamī and the mustard seed, are labelled as later tradition and never cited as his words.
 
 ## 7. Architecture
@@ -117,7 +117,7 @@ Precedence: crisis > decline > redirect > chat > don't know > answer.
 | 1 | Browser → Web app | HTTP | 5005 | the user | Pages and JavaScript |
 | 2 | Browser → Agent | HTTP POST `/api/chat`, reply streamed back as SSE. HTTP/JSON for `/api/auth/*` and `/api/chats/*`, with the session cookie | 7891 | the user | In: the messages (history comes from the browser). Out: the reply, sentence by sentence, then the cards. Signing up, in and out, and an account's conversations: listed, opened, saved, deleted |
 | 3 | Agent → OpenRouter | HTTPS, OpenAI-compatible, streamed | 443 | the user | The guard call, then the reply call with tools |
-| 4 | Agent → Retrieval API | HTTP/JSON: `POST /v1/search`, `GET /v1/passages/{id}`, `GET /v1/suttas/{id}/paragraphs`, `POST /v1/cards`. For accounts, `POST /v1/users`, `POST` and `DELETE /v1/sessions`, `GET /v1/me` and `/v1/chats/{id}`, with the cookie's token as a bearer token | 7890 | the user | A query and filters in; passages with IDs out (in Pali mode, the top suttas' Pali too). Then the cited IDs in; the cards out, verbatim from the database. For accounts: a username and password in, a session token out; then an account's conversations |
+| 4 | Agent → Retrieval API | HTTP/JSON: `POST /v1/search`, `POST /v1/quote`, `GET /v1/passages/{id}`, `GET /v1/suttas/{id}/paragraphs`, `POST /v1/cards`. For accounts, `POST /v1/users`, `POST` and `DELETE /v1/sessions`, `GET /v1/me` and `/v1/chats/{id}`, with the cookie's token as a bearer token | 7890 | the user | A query and filters in; passages with IDs out (in Pali mode, the top suttas' Pali too). Then the cited IDs in; the cards out, verbatim from the database. For accounts: a username and password in, a session token out; then an account's conversations |
 | 5 | Retrieval API → Postgres | SQL (pgx) | 5432 | the user | Hybrid search: pgvector plus trigrams. Users, sessions and the conversations accounts keep |
 | 6 | Retrieval API → OpenRouter | HTTPS | 443 | the user | Embeds the query (`baai/bge-m3`) |
 | 7 | `buddha sync` → Sources | git clone and HTTPS downloads | 443 | nobody (batch) | VRI XML; Thai PDFs, 5 seconds apart as the site's robots.txt asks; Ṭhānissaro's sutta pages, 4 at a time; public-domain scans once phase 1b is built |
@@ -154,7 +154,7 @@ buddha-gpt/
 │                        migrations/*.sql, applied on startup (no ORM)
 ├── packages/
 │   └── shared/          @buddha-gpt/shared · TS types for web and agent: cards, routes, languages
-├── prompts/             buddha.md, guard.md · any edit triggers the eval gate
+├── prompts/             buddha.md, guard.md, quote.md · any edit triggers the eval gate
 ├── policy.yaml          crisis words and hotlines, decline topics, risk lists, thresholds · read by the agent
 ├── evals/               cases/*.jsonl · reports/
 ├── data/                git-ignored: downloaded sources

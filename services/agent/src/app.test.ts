@@ -27,10 +27,10 @@ const hits = [
   { id: "dhp1-20#en1", sutta_id: "dhp1-20", lang: "en", text: "Phenomena are preceded by the heart.", score: 0.9 },
 ];
 
-// A stand-in for the Go core's /v1 routes that records what the agent asked for. Search finds
-// nothing for "peace comes from within" alone, the fake quote.
+// A stand-in for the Go core's /v1 routes that records what the agent asked for. The quote lookup finds
+// nothing for "peace comes from within", the fake quote.
 function fakeRetrieval() {
-  const seen = { searches: [] as { query: string; exclude: string[] }[], passages: [] as string[], cards: [] as string[][], near: [] as string[] };
+  const seen = { searches: [] as { query: string; exclude: string[] }[], quotes: [] as string[], passages: [] as string[], cards: [] as string[][], near: [] as string[] };
   const server = createServer((req, res) => {
     let body = "";
     req.on("data", (c) => (body += c));
@@ -47,6 +47,11 @@ function fakeRetrieval() {
         seen.searches.push({ query, exclude });
         const none = query === "peace comes from within";
         return res.end(JSON.stringify(none ? { hits: [], top_cosine: 0, top_lexical: 0 } : { hits, top_cosine: 0, top_lexical: 1 }));
+      }
+      if (path === "/v1/quote") {
+        const { quote } = JSON.parse(body);
+        seen.quotes.push(quote);
+        return res.end(JSON.stringify({ lines: [], words: null }));
       }
       if (path.startsWith("/v1/suttas/")) {
         const sutta = decodeURIComponent(path.split("/")[3]);
@@ -148,7 +153,7 @@ test("words the texts don't contain get the honest verdict first", () =>
   withAgent(async (post, seen) => {
     const turn = await post([user('Did the Buddha say "peace comes from within"?')]);
     assert.ok(turn.text.startsWith("I don't recall saying those words. "), turn.text);
-    assert.ok(seen.searches.some((s) => s.query === "peace comes from within"));
+    assert.deepEqual(seen.quotes, ["peace comes from within"]);
   }));
 
 test("asked for the Pali, it quotes the canon verbatim: the model names passages, code writes them out", () =>

@@ -19,6 +19,7 @@ import * as core from "./core.ts";
 import { crisisKeyword, guard, type Guard, type Route } from "./guard.ts";
 import { chatModel, modelId } from "./model.ts";
 import { policy } from "./policy.ts";
+import { verdict, type Verdict } from "./quote.ts";
 
 export type BuddhaMessage = UIMessage<never, ChatData>;
 type Lang = "en" | "th";
@@ -108,6 +109,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, evalM
   let opening = ""; // a sentence code writes before the reply: the verdict on a quote
   let fixed = ""; // a reply code writes instead of the model's
   let searched: string[] = [];
+  let checked: Verdict | null = null; // the verdict on words the person attributes to the Buddha
   const paliText = new Map<string, string>(); // Pali mode: what each quotable passage says, verbatim
   if (route === "decline") {
     const id = g.decline_topic ? policy.decline[g.decline_topic] : null;
@@ -119,21 +121,24 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, evalM
     }
   } else if (route === "answer") {
     try {
-      const r = await core.search(g.search_query || latest, 8, exclude);
+      // the words someone attributes to the Buddha are looked up in code, line by line, alongside the
+      // search (PRD §6)
+      const [r, v] = await Promise.all([core.search(g.search_query || latest, 8, exclude), g.quote ? verdict(g.quote, exclude) : null]);
       passages = r.hits;
       searched = r.hits.map((h) => h.id);
       if (!(r.top_lexical > 0 || r.top_cosine >= policy.dont_know.min_cosine)) fixed = TEXT.dontKnow[lang];
-      if (g.quote) {
-        // the words someone attributes to the Buddha are looked up in code (PRD §6)
-        const q = await core.search(g.quote, 3, exclude);
-        const same = q.top_lexical >= policy.quotes.same_words;
-        const similar = !same && (q.top_lexical > 0 || q.top_cosine >= policy.quotes.similar_cosine);
-        opening = TEXT[same ? "quoteFound" : similar ? "quoteSimilar" : "quoteNone"][lang];
-        if ((same || similar) && q.hits[0]) {
-          passages = [q.hits[0], ...passages];
-          pinned = q.hits[0].id;
+      if (v) {
+        checked = v;
+        opening = TEXT[v.kind][lang];
+        if (v.line) {
+          const { id, sutta_id, lang: l, text, score, line } = v.line;
+          passages = [{ id, sutta_id, lang: l, text, score }, ...passages];
+          pinned = id;
+          note += ` The line closest to them is in [${id}]: "${escapeTags(line)}".`;
         }
         note += ` The person attributed these words to the Buddha: "${escapeTags(g.quote)}". Your reply's first sentence is already written: "${opening}" Write only what follows it, and never claim you said those words.`;
+        // the check found no line that makes their point: he mustn't claim its spirit either
+        if (v.kind === "quoteNone") note += " No passage makes their point: don't claim it or its spirit, and don't say the words aren't yours, only that you don't recall them. You may say what you did teach about the subject.";
       }
       if (pali && !fixed) {
         // the Pali of the suttas search found, around where each one's best hit falls: the model
@@ -177,6 +182,7 @@ export async function chat(messages: BuddhaMessage[], res: ServerResponse, evalM
     lang: pali ? "pi" : lang,
     risk,
     searched, // the first search's hits, best first
+    quote: checked && { verdict: checked.kind, line: checked.line?.id ?? null }, // the quote check's verdict
     retrieved: order, // every passage the reply could cite
     cited: [] as string[],
     dropped: [] as string[],

@@ -77,6 +77,7 @@ func serve(ctx context.Context) error {
 type backend interface {
 	Ping(ctx context.Context) error
 	Search(ctx context.Context, query string, k int, exclude []string) (store.Result, error)
+	Quote(ctx context.Context, quote string, exclude []string) (store.QuoteResult, error)
 	Cards(ctx context.Context, ids []string) ([]store.Card, error)
 	Passage(ctx context.Context, id string, window int) ([]store.Hit, error)
 	Paragraphs(ctx context.Context, suttaID, lang, near string, limit int) ([]store.Hit, error)
@@ -85,12 +86,14 @@ type backend interface {
 type live struct {
 	st    *store.Store
 	model string
-	embed store.Embedder // nil when no embedding model is configured: search is lexical only
+	embed store.Embedder  // nil when no embedding model is configured: search is lexical only
+	many  store.EmbedMany // the same, for many texts at once
 }
 
 func newLive(st *store.Store, emb *embed.Client) live {
 	l := live{st: st, model: emb.Model}
 	if emb.Ready() {
+		l.many = emb.Embed
 		l.embed = func(ctx context.Context, q string) ([]float32, error) {
 			v, err := emb.Embed(ctx, []string{q})
 			if err != nil {
@@ -105,6 +108,9 @@ func newLive(st *store.Store, emb *embed.Client) live {
 func (l live) Ping(ctx context.Context) error { return l.st.Pool.Ping(ctx) }
 func (l live) Search(ctx context.Context, q string, k int, exclude []string) (store.Result, error) {
 	return l.st.Search(ctx, q, k, l.model, l.embed, exclude)
+}
+func (l live) Quote(ctx context.Context, quote string, exclude []string) (store.QuoteResult, error) {
+	return l.st.Quote(ctx, quote, l.model, l.many, exclude)
 }
 func (l live) Cards(ctx context.Context, ids []string) ([]store.Card, error) {
 	return l.st.Cards(ctx, ids)
@@ -203,6 +209,24 @@ func routes(b backend) *http.ServeMux {
 		if err != nil {
 			log.Printf("search: %v", err)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "search failed"})
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
+	})
+	// words someone attributes to the Buddha, looked up line by line for the agent's verdict (PRD §6)
+	mux.HandleFunc("POST /v1/quote", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Quote   string   `json:"quote"`
+			Exclude []string `json:"exclude"` // sutta IDs to leave out: the risk filter
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil || strings.TrimSpace(req.Quote) == "" || len(req.Quote) > 2000 || len(req.Exclude) > 50 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "send {\"quote\": \"…\"}, at most 2000 characters, with at most 50 suttas to exclude"})
+			return
+		}
+		res, err := b.Quote(r.Context(), req.Quote, req.Exclude)
+		if err != nil {
+			log.Printf("quote: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "quote lookup failed"})
 			return
 		}
 		writeJSON(w, http.StatusOK, res)
@@ -388,10 +412,11 @@ func embedMissing(ctx context.Context, st *store.Store, emb *embed.Client) error
 func runSearch(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
 	k := fs.Int("k", 8, "number of results")
+	quote := fs.Bool("quote", false, "look the words up line by line, as the quote check does")
 	fs.Parse(args)
 	query := strings.Join(fs.Args(), " ")
 	if query == "" {
-		return fmt.Errorf(`usage: buddha search [-k 8] "four noble truths"`)
+		return fmt.Errorf(`usage: buddha search [-k 8] [-quote] "four noble truths"`)
 	}
 	st, err := store.Open(ctx, dbURL())
 	if err != nil {
@@ -399,6 +424,19 @@ func runSearch(ctx context.Context, args []string) error {
 	}
 	defer st.Close()
 	emb := embed.FromEnv()
+	if *quote {
+		res, err := newLive(st, emb).Quote(ctx, query, nil)
+		if err != nil {
+			return err
+		}
+		for i, l := range res.Lines {
+			fmt.Printf("%2d. %-16s %s  cosine %.3f  words %.3f  %.110s\n", i+1, l.ID, l.Lang, l.Cosine, l.Words, l.Line)
+		}
+		if w := res.Words; w != nil {
+			fmt.Printf("most words: %s  %.3f  %.110s\n", w.ID, w.Words, w.Line)
+		}
+		return nil
+	}
 	res, err := newLive(st, emb).Search(ctx, query, *k, nil)
 	if err != nil {
 		return err

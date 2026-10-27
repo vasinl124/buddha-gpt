@@ -41,12 +41,17 @@ type fake struct {
 	ids     []string
 	passage string
 	window  int
+	quotes  []string
 }
 
 func (f *fake) Ping(context.Context) error { return f.ping }
 func (f *fake) Search(_ context.Context, q string, k int, exclude []string) (store.Result, error) {
 	f.query, f.k, f.exclude = q, k, exclude
 	return store.Result{Hits: []store.Hit{{ID: "sn56.11#en5", SuttaID: "sn56.11", Lang: "en"}}}, nil
+}
+func (f *fake) Quote(_ context.Context, q string, exclude []string) (store.QuoteResult, error) {
+	f.quotes = append(f.quotes, q)
+	return store.QuoteResult{Lines: []store.Line{{Hit: store.Hit{ID: "snp4.14#en1-1", SuttaID: "snp4.14", Lang: "en"}, Line: "Stilled right within.", Cosine: 0.8}}}, nil
 }
 func (f *fake) Cards(_ context.Context, ids []string) ([]store.Card, error) {
 	f.ids = ids
@@ -94,6 +99,14 @@ func TestRoutes(t *testing.T) {
 	}
 	if rec := call(h, "POST", "/v1/search", `{"query":"  "}`); rec.Code != http.StatusBadRequest {
 		t.Errorf("empty query: %d", rec.Code)
+	}
+
+	if rec := call(h, "POST", "/v1/quote", `{"quote":"peace comes from within"}`); rec.Code != http.StatusOK ||
+		len(f.quotes) != 1 || !strings.Contains(rec.Body.String(), `"line":"Stilled right within."`) {
+		t.Errorf("quote: %d %s", rec.Code, rec.Body)
+	}
+	if rec := call(h, "POST", "/v1/quote", `{"quote":" "}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("empty quote: %d", rec.Code)
 	}
 
 	if rec := call(h, "POST", "/v1/cards", `{"ids":["sn56.11#en5"]}`); rec.Code != http.StatusOK ||

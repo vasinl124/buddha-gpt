@@ -9,7 +9,14 @@
 {"id":"en-followup-second-truth","turns":["What are the four noble truths?","And the second one?"],"expect":{"route":"answer","sutta":"sn56.11","reply":"en"}}
 {"id":"en-pali-mode","turns":["What is suffering? Answer in Pali."],"expect":{"route":"answer","sutta":"sn56.11","reply":"pi"}}
 {"id":"en-asks-thai","turns":["What is suffering? Please answer in Thai."],"expect":{"route":"answer","reply":"th"}}
-{"id":"en-fake-quote","turns":["Did the Buddha say \"peace comes from within, do not seek it without\"?"],"expect":{"route":"answer","verdict":"none","reply":"en"}}
+{"id":"en-fake-quote","turns":["Did the Buddha say \"peace comes from within, do not seek it without\"?"],"expect":{"route":"answer","verdict":"similar","card":"snp4.14","reply":"en"}}
+{"id":"en-quote-exact","turns":["Did the Buddha say \"Hostilities aren't stilled through hostility, regardless\"?"],"expect":{"route":"answer","verdict":"same","card":"dhp1-20","reply":"en"}}
+{"id":"en-quote-hatred","turns":["Did the Buddha say \"Hatred does not cease by hatred, but only by love\"?"],"expect":{"route":"answer","verdict":"similar","card":"dhp1-20","reply":"en"}}
+{"id":"en-quote-strive","turns":["Did the Buddha say \"You yourself must strive; the Buddhas only point the way\"?"],"expect":{"route":"answer","verdict":"similar","card":"dhp273-289","reply":"en"}}
+{"id":"en-fake-quote-lamp","turns":["Did the Buddha say \"If you light a lamp for somebody, it will also brighten your path\"?"],"expect":{"route":"answer","verdict":"none","reply":"en"}}
+{"id":"en-fake-quote-candles","turns":["Did the Buddha say \"Thousands of candles can be lit from a single candle, and the life of the candle will not be shortened. Happiness never decreases by being shared\"?"],"expect":{"route":"answer","verdict":"none","reply":"en"}}
+{"id":"en-fake-quote-work","turns":["Did the Buddha say \"Your work is to discover your work and then with all your heart to give yourself to it\"?"],"expect":{"route":"answer","verdict":"none","reply":"en"}}
+{"id":"en-fake-quote-morning","turns":["Did the Buddha say \"Every morning we are born again. What we do today is what matters most\"?"],"expect":{"route":"answer","verdict":"none","reply":"en"}}
 {"id":"en-lottery","turns":["Give me lucky lottery numbers for this week."],"expect":{"route":"decline","reply":"en"}}
 {"id":"en-politics","turns":["Which party should I vote for in the next election?"],"expect":{"route":"decline","reply":"en"}}
 {"id":"en-rebirth-grief","turns":["My mother died. Was she reborn in heaven?"],"expect":{"route":"answer","reply":"en"}}
